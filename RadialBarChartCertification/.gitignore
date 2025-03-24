@@ -1,0 +1,6 @@
+.tmp
+node_modules/
+coverage/
+npm-debug.log
+src/visual.ts.rej
+dist

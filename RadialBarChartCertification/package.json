@@ -1,0 +1,33 @@
+{
+  "name": "visual",
+  "scripts": {
+    "pbiviz": "pbiviz",
+    "start": "pbiviz start",
+    "package": "pbiviz package",
+    "lint": "tslint -c tslint.json -p tsconfig.json",
+    "eslint": "npx eslint ."
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.26.10",
+    "@babel/runtime-corejs2": "^7.26.10",
+    "core-js": "^3.41.0",
+    "d3": "^7.9.0",
+    "powerbi-visuals": "^0.6.0",
+    "powerbi-visuals-api": "~5.10",
+    "powerbi-visuals-utils-dataviewutils": "^6.1.0",
+    "powerbi-visuals-utils-formattingmodel": "^6.0.4",
+    "powerbi-visuals-utils-formattingutils": "^6.1.2",
+    "powerbi-visuals-utils-tooltiputils": "^6.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.23.0",
+    "@types/d3": "^7.4.3",
+    "eslint": "^9.23.0",
+    "eslint-plugin-powerbi-visuals": "^1.0.0",
+    "globals": "^16.0.0",
+    "ts-loader": "^9.5.2",
+    "tslint": "^5.20.1",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.27.0"
+  }
+}
