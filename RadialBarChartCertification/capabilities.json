@@ -43,6 +43,9 @@
     "sorting": {
         "default": {}
     },
+    "supportsLandingPage": true,
+    "supportsEmptyDataView": true,
+    "supportsHighlight": true,
     "objects": {
         "generalView": {
             "displayName": "Maximum value settings",
@@ -1294,7 +1297,6 @@
             "Tooltips"
         ]
     },
-    "supportsHighlight": true,
     "dataViewMappings": [
         {
             "conditions": [
