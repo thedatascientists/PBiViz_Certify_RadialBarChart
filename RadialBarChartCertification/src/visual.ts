@@ -194,8 +194,8 @@ export class Visual implements IVisual {
         // Create main container div for the landing page
         const landingPage = document.createElement('div');
         landingPage.classList.add('landing-page');
-        landingPage.style.width = '100vw';  // Full viewport width
-        landingPage.style.height = '100vh';  // Full viewport height
+        landingPage.style.width = '100%';  // Full viewport width
+        landingPage.style.height = '100%';  // Full viewport height
         landingPage.style.display = 'flex';
         landingPage.style.flexDirection = 'column';
         landingPage.style.justifyContent = 'center';
@@ -341,1246 +341,1244 @@ export class Visual implements IVisual {
         
                 // get data
                 this.viewModel = this.getViewModel(options); 
-                const viewModel = this.viewModel;
-        
-        
-                // get size of the canvas
-                let width = options.viewport.width;
-                let height = options.viewport.height;
-        
-                this.svg.attr("fill", "transparent")
-                
-        
-                // creates vertical sidebar
-                if (height < 240) {
-                    height = 240
-                    this.elementOptions.style.overflowY = 'auto'
+
+
+                if(this.viewModel.dataPoints.length > 0) {
+                    // get size of the canvas
+                    let width = options.viewport.width;
+                    let height = options.viewport.height;
+            
+                    this.svg.attr("fill", "transparent")
+                    
+            
+                    // creates vertical sidebar
+                    if (height < 240) {
+                        height = 240
+                        this.elementOptions.style.overflowY = 'auto'
+                        this.svg.attr("width", width)
+                        this.svg.attr("height", height)
+            
+                    } else{
+                        this.elementOptions.style.overflowY = 'hidden'
+                        this.svg.attr("width", width)
+                        this.svg.attr("height", height)
+                    }
+            
+            
+                    // creates horizontal sidebar
+                    if (width < 290) {
+                        width = 290
+                        this.elementOptions.style.overflowX = 'auto'
+                        this.svg.attr("width", width)
+                        this.svg.attr("height", height)
+                    }else{
+                        this.elementOptions.style.overflowX = 'hidden'
+                        this.svg.attr("width", width)
+                        this.svg.attr("height", height)
+                    }
+                    
+            
+                    this.svg.selectAll("text").remove();
                     this.svg.attr("width", width)
-                    this.svg.attr("height", height)
-        
-                } else{
-                    this.elementOptions.style.overflowY = 'hidden'
-                    this.svg.attr("width", width)
-                    this.svg.attr("height", height)
-                }
-        
-        
-                // creates horizontal sidebar
-                if (width < 290) {
-                    width = 290
-                    this.elementOptions.style.overflowX = 'auto'
-                    this.svg.attr("width", width)
-                    this.svg.attr("height", height)
-                }else{
-                    this.elementOptions.style.overflowX = 'hidden'
-                    this.svg.attr("width", width)
-                    this.svg.attr("height", height)
-                }
-                
-        
-                this.svg.selectAll("text").remove();
-                this.svg.attr("width", width)
-                    .attr("height", height)
-        
-                // Reset all the shapes to avoid artifacts in the update
-                d3.selectAll("text").remove();
-                d3.selectAll("path").remove();
-                d3.selectAll("rect").remove();
-                d3.selectAll("circle").remove();
-                d3.selectAll("line").remove();
-                d3.selectAll('svg > image').remove();
-                this.legend.selectAll('.labelBackground').remove()
-        
-                const theradius = this.visualSettings.radialSettings.radius
-        
-                const arc = d3.arc()
-                    .startAngle(0)
-                    .cornerRadius(theradius)
-        
-                const arcShadow = d3.arc()
-                    .startAngle(0)
-                    .cornerRadius(0)
-        
-                const updatearc = (who, type, id) => {
-                    const osnum = type[0];
-                    const typenum = type[1];
-                    const display = type[2];
-        
-                    
-                    const limit = this.visualSettings.generalView.totalValueType == "fixed" 
-                        ? this.visualSettings.generalView.fixedTotal 
-                        : calculatedTotal;
-        
-        
+                        .attr("height", height)
             
-                    d3.transition()
-                        .select(id + osnum + "_" + typenum)
-                        .transition()
-                        .duration(id.includes("Shadow") ? 0 : this.visualSettings.animationSettings.enableAnimations 
-                            ? osnum * (this.visualSettings.animationSettings.duration * 1000) 
-                            : 0)
-                        .call(arcTween, [type[2] * 1.5 * Math.PI / limit, id == "#monthArcShadow_" ? arcShadow : arc, osnum, typenum, display])
-                        .on("end", () => {
-                            this.events.renderingFinished(options);
-                        });
-        
-                };
-        
-                const handleMouseClick = () => {
-                    this.categorySelected = this.categorySelected == false ? true : false
-                    this.filteredCategories = []
-                    this.update(options);
-                }
-        
-        
-                let uniqueGroup = viewModel.dataPoints.filter(d => d != null).map(d => d.os).filter(this.onlyUnique)
-        
-                if(this.sortByValues){
-                    const sortCategory = []
-                    try {
-                        for(let i = 0; i < uniqueGroup.length; i++){
-                            sortCategory.push({
-                                group: uniqueGroup[i],
-                                groupTotal: <number>viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[i]).map(d => d.value).reduce((a, b) => a + b, 0)
-                            })
-                        }
-                    } catch (error) {
-                        console.log(error)
-                    } 
-        
-                    sortCategory.sort(function(a, b){ return a.groupTotal < b.groupTotal ? -1 : 1 })
-                    uniqueGroup = this.sortOrder == 1 ? Array.from(sortCategory, x => x.group).reverse() : Array.from(sortCategory, x => x.group) 
-                }
-                
-                const line_tickness = (Math.min(width, height) / 2 - 20) / uniqueGroup.length
-        
-                this.totalByCategory = []
-                let biggest = 0
-                let maxGroup = null
-        
-                for (let index = 0; index < uniqueGroup.length; index++) {
-        
-                    const indexOnDataview = viewModel.dataPoints.indexOf(viewModel.dataPoints.filter(d => d.os == uniqueGroup[index])[0])
-                    const currentSum = viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[index]).map(d => d.value).reduce((a, b) => a + b, 0)
-                    
-                    if(currentSum > biggest){
-                        maxGroup =  uniqueGroup[index]
-                        biggest = currentSum
-                    }
-                    this.totalByCategory.push({
-                        group: uniqueGroup[index],
-                        groupTotal: currentSum,
-                        active: options.dataViews.map(d => d.categorical)[0].categories[0].objects != undefined ? dataViewObjects.dataViewObjects.getValue(options.dataViews.map(d => d.categorical)[0].categories[0].objects[indexOnDataview],
-                            { objectName: "generalView", propertyName: "categoryToTotal" }, true) : true,
-                        identity: viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[index])[0].identity
-                    })
-                }
-        
-                this.totalByCategory.push({
-                    group: "total",
-                    groupTotal: this.viewModel.dataPoints.map(d => d.value).reduce((a, b) => a + b, 0),
-                    active: true,
-                    identity: null
-                })
-        
-                
-                const total_active_categories = this.totalByCategory.filter(d => d.group != "total").filter(d => d.active).length
-                const calculatedTotal = !this.categorySelected && total_active_categories != 0 && this.visualSettings.generalView.totalValueType == "sum" ? 
-                                            this.totalByCategory.filter(d => d.group != "total").filter(d => d.active).map(d => d.groupTotal).reduce((a, b) => a + b, 0) : 
-                                            this.visualSettings.generalView.totalValueType == "fixed" ? this.visualSettings.generalView.fixedTotal : this.totalByCategory.filter(d => d.group == maxGroup)[0].groupTotal
-        
-                const labels = []
-                const percentageFormat = vL.create({ format: "0.0%" })
-        
-                for (let i = 0; i < 7; i++) {
-                     
-                    const limit = this.visualSettings.generalView.totalValueType == "fixed" ? this.visualSettings.generalView.fixedTotal : calculatedTotal
-                    const quarter = Math.round(limit * (0.1666666 * i))
-                    let value = ""
-        
-        
-                    value = this.formatValue(quarter, this.defaultCubeFormat, this.visualSettings.numberLabels.decimalPlaces, this.visualSettings.numberLabels.quarterUnits)
-                    labels.push(value)
-                }
-        
-                
-        
-                let biggest_number = 0
-                for (let i = 0; i < uniqueGroup.length; i++) {
-                    const number = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? viewModel.dataPoints.filter(e => e.os == uniqueGroup[i]).map(e => e.value).reduce((a, b) => a + b, 0) / viewModel.total : viewModel.dataPoints.filter(e => e.os == uniqueGroup[i]).map(e => e.value).reduce((a, b) => a + b, 0)
-        
-                    biggest_number = biggest_number < number ? number : biggest_number
-                }
-        
-                const wstart = width / 2
-                const hstart = (height / 2)
-                const radial_height = (Math.min(width, height) / 2 - 20) / uniqueGroup.length
-        
-        
-                if (this.visualSettings.labelFormatting.showLabels) {
-                    try {
-                        // The following text corresponds to the text of the labels of each bar
-                        //In this case they appear outside so they are on the top left quarter
-        
-                        this.circle.selectAll(".labelText")
-                            .data(uniqueGroup)
-                            .enter()
-                            .append("text")
-                            .attr("class", "labelText")
-                            .attr('x', (d) => {
-                                const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
-                                                        this.formatValue(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
-        
-        
-        
-                                const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
-                                const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic)
-                                const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
-        
-        
-        
-                                if(this.visualSettings.labelValueFormatting.showLabels) {
-        
-                                    if( this.visualSettings.labelFormatting.labelAlignment == "right") {
-                                        return wstart
-                                    } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
-                                        return wstart - radial_height * uniqueGroup.length * 0.95 + valueLabelWidth + separatorLabelWidth
-                                    }
-                                    else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
-                                        return wstart - radial_height * uniqueGroup.length * 0.5 + separatorLabelWidth / 2
-                                    }
-        
-                                } else return this.visualSettings.labelFormatting.labelAlignment == "right" ? wstart : 
-                                             (this.visualSettings.labelFormatting.labelAlignment == "left" ? wstart - radial_height * uniqueGroup.length * 0.95 : 
-                                                this.visualSettings.labelFormatting.labelAlignment == "center" ? wstart - radial_height * uniqueGroup.length * 0.5 : 
-                                             "") 
-        
-        
-                            })
-                            .attr('y', (d, i) => hstart - (radial_height * (i + 1)) + (radial_height * 0.55))
-                            .attr("dx", -5)
-                            .attr("id", (d, i) => "themark_" + i)
-                            .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? (this.visualSettings.labelValueFormatting.showLabels ? "start" : "middle") : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
-                            .attr("font-size", this.visualSettings.labelFormatting.size + 'pt')
-                            .attr("font-weight", this.visualSettings.labelFormatting.textWeight ? "bold" : "normal")
-                            .attr("text-decoration", this.visualSettings.labelFormatting.fontUnderline ? "underline": "normal")
-                            .attr("font-style", this.visualSettings.labelFormatting.fontItalic ? "italic": "normal")
-                            .style("font-family", this.visualSettings.labelFormatting.fontFamily)
-                            .style("fill", this.visualSettings.labelFormatting.fontColor)
-                            .text( (d) => {
-                                const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
-                                                            this.formatValue(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
-        
-        
-                            
-                                const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
-                                const labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic);
-                                const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
-                            
-                            
-                                const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
-                                                                valueLabelWidth + separatorLabelWidth + labelWidth :
-                                                            this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
-                                                                labelWidth :
-                                                            !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
-                                                                valueLabelWidth :
-                                                                0;
-                            
-                                                                
-                                const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
-                                
-                                
-                                const ellipsis = "...";
-        
-                                // Truncate text if it exceeds available space
-                                if (completeLabelWidth > availableSpace) {
-                                    let truncatedText = d;
-                                    let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                            
-                                    while (currentWidth > availableSpace && truncatedText.length > 0) {
-                                        truncatedText = truncatedText.slice(0, -1);  
-                                        currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                    }
-                            
-                                    return truncatedText.slice(0, -3) + ellipsis; 
-                                }
-                            
-                                return d;
-                            })                    
-                            .on("click", (d, i) => {
-                                // when one category is clicked, the visual moves to another level with the detailed categories
-                                if ((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) ||
-                                    (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)) {
-                            
-                                    if (!this.categorySelected) {
-                                        // If there are no categories selected, the visual appears normal (not filtered)
-                                        this.selectionManager.clear();
-                                        const identity = viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity);
-                                        return this.selectionManager.select(identity, true).then(() => {
-                                            this.selectedCategoryName = <string><unknown>i;
-                                            this.selectedCategoryColor = viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color;
-                                            this.categorySelected = !this.categorySelected;
-                                            this.last_step = "first";
-                                            this.update(options);
-                                        });
-                            
-                                    } else {
-                                        // In case one category is selected, the visual is filtered by that category 
-                                        const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity;
-                            
-                                        if (this.identitySelected === identity) { // Click a category that is already selected, reset to default state
-                                            this.selectionManager.clear();
-                                            this.detailCategorySelected = false;
-                                            this.update(options);
-                                        } else {
-                                            this.identitySelected = identity;
-                            
-                                            // This allows us to track at which level we are
-                                            if (this.last_step === "first") {
-                                                this.last_step = "second";
-                                                this.selectionManager.clear();
-                                            }
-                            
-                                            if (!event["ctrlKey"]) {
-                                                this.selectionManager.clear();
-                                                this.filteredCategories = [];
-                                            }
-                            
-                                            if (!this.visualSettings.iconHome.allowGoBack_label) {
-                                                return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
-                                                    this.detailCategorySelected = true;
-                                                    this.filteredCategories.push(viewModel.dataPoints.filter(d => d.category == i)[0].category);
-                            
-                                                    d3.selectAll(".circle_path").style("fill-opacity", 0.2);
-                            
-                                                    for (let i = 0; i < ids.length; i++) {
-                                                        d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
-                                                        d3.selectAll("[identifier='" + viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1);
-                                                    }
-                                                });
-                                            } else {
-                                                this.selectionManager.clear();
-                                                return handleMouseClick();
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    console.log("NO SECOND LEVEL");
-                                }
-                            });
-                            
-                    } catch (error) {
-                        console.log(error)
-                    }
-                }
-        
-        
-        
-                if (this.visualSettings.labelValueFormatting.showLabels) {
-                    try {
-                        // The following text corresponds to the text of the labels of each bar
-                        //In this case they appear outside so they are on the top left quarter
-        
-                        this.circle.selectAll(".labelValueText")
-                            .data(uniqueGroup)
-                            .enter()
-                            .append("text")
-                            .attr("class", "labelValueText")
-                            .attr('x', (d) => {
-                                const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
-                                                        this.formatValue(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
-        
-        
-                                const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
-                                let labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic)
-                                const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic)
-                                const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
-        
-        
-                                const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
-                                                                valueLabelWidth + separatorLabelWidth + labelWidth :
-                                                            this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
-                                                                labelWidth :
-                                                            !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
-                                                                valueLabelWidth :
-                                                                0;
-        
-                                                                
-                                const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
-        
-        
-                                const ellipsis = "...";
-               
-                                // Truncate text if it exceeds available space
-                                if (completeLabelWidth > availableSpace) {
-                                    let truncatedText = d;
-                                    let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-        
-                                    while (currentWidth> availableSpace && truncatedText.length > 0) {
-                                        truncatedText = truncatedText.slice(0, -1);  
-                                        currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                    }
-        
-                                    labelWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                }
-        
-                                if(this.visualSettings.labelFormatting.showLabels) {
-                                    if( this.visualSettings.labelFormatting.labelAlignment == "right") {
-                                        return wstart - labelWidth - separatorLabelWidth
-                                    } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
-                                        return wstart - radial_height * uniqueGroup.length * 0.95
-                                    } else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
-                                        return wstart - radial_height * uniqueGroup.length * 0.5 - separatorLabelWidth / 2
-                                    }
-                                } else return this.visualSettings.labelFormatting.labelAlignment == "right" ? wstart : 
-                                              this.visualSettings.labelFormatting.labelAlignment == "left" ? wstart - radial_height * uniqueGroup.length * 0.95 :
-                                              this.visualSettings.labelFormatting.labelAlignment == "center" ? wstart - radial_height * uniqueGroup.length * 0.5 : ""
-         
-                            })
-                            .attr('y', function (d, i) {
-                                return hstart - (radial_height * (i + 1)) + (radial_height * 0.55)
-                            })
-                            .attr("dx", -5)
-                            .attr("id", (d, i) => "themark_" + i)
-                            .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? (this.visualSettings.labelFormatting.showLabels ? "end" : "middle") : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
-                            .attr("font-size", this.visualSettings.labelValueFormatting.size + 'pt')
-                            .attr("font-weight", this.visualSettings.labelValueFormatting.textWeight ? "bold" : "normal")
-                            .attr("text-decoration", this.visualSettings.labelValueFormatting.fontUnderline ? "underline": "normal")
-                            .attr("font-style", this.visualSettings.labelValueFormatting.fontItalic ? "italic": "normal")
-                            .style("font-family", this.visualSettings.labelValueFormatting.fontFamily)
-                            .style("fill", this.visualSettings.labelValueFormatting.fontColor)
-                            .text((d) => {
-        
-                                const formattedValue =  this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
-                                                            this.formatValue(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
-        
-                                return formattedValue
-                                
-        
-                            })
-                            .on("click", (d, i) => {
-        
-                                // when one category is clicked, the visual moves to another level with the detailed categories
-                                if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
-                                    
-                                    if (!this.categorySelected) {
-        
-                                        // if there are no category selected, the visual appears normal, i.e., not filtered
-                                       
-                                        this.selectionManager.clear()
-                                        const identity = viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity)
-        
-                                        return this.selectionManager.select(identity, true).then(() => {
-                                            this.selectedCategoryName = <string><unknown>i
-                                            this.selectedCategoryColor = viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color
-                                            this.categorySelected = this.categorySelected == false ? true : false
-                                            this.last_step = "first"
-                                            this.update(options);
-                                        });
-        
-                                    } else {
-        
-                                        // In case one category is selected, the visual is filtered by that category 
-        
-                                        const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity
-        
-                                        if(this.identitySelected == identity){ // Click a category that is already selected, reset to default state
-                                            this.selectionManager.clear()
-                                            this.detailCategorySelected = false
-                                            this.update(options);
-                                        } else{
-                                            this.identitySelected = identity
-                                            
-                                            // this allow us to know at which level are we in
-                                            if (this.last_step == "first") {
-                                                this.last_step = "second"
-                                                this.selectionManager.clear()
-                                            }
+                    // Reset all the shapes to avoid artifacts in the update
+                    d3.selectAll("text").remove();
+                    d3.selectAll("path").remove();
+                    d3.selectAll("rect").remove();
+                    d3.selectAll("circle").remove();
+                    d3.selectAll("line").remove();
+                    d3.selectAll('svg > image').remove();
+                    this.legend.selectAll('.labelBackground').remove()
             
-                                            if (!event["ctrlKey"]) {
-                                                this.selectionManager.clear()
-                                                this.filteredCategories = []
-                                            }
-        
+                    const theradius = this.visualSettings.radialSettings.radius
             
-                                            if(!this.visualSettings.iconHome.allowGoBack_label){
-                                                return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
-        
-                                                    this.detailCategorySelected = true
-        
-                                                    this.filteredCategories.push(viewModel.dataPoints.filter(d => d.category == i)[0].category)
-                
-                                                    d3.selectAll(".circle_path").style("fill-opacity", 0.2)
-                
-                
-                                                    for (let i = 0; i < ids.length; i++) {
-                
-                                                        d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
-                                                        d3.selectAll("[identifier='" + viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
-                                                    }
-                
-                                                });                                             
-                                            }
-                                            else {
-                                                this.selectionManager.clear()
-                                                return handleMouseClick();                                        
-                                            }                               
-                                        }
-        
-        
-        
-                                    }
-                                } else{
-                                    console.log("NO SECOND LEVEL")
-                                }
-        
-                            })
-                    } catch (error) {
-                        console.log(error)
-                    }
-                }
-        
-        
-                if (this.visualSettings.labelValueFormatting.showLabels && this.visualSettings.labelFormatting.showLabels) {
-                    try {
-                        // The following text corresponds to the text of the labels of each bar
-                        //In this case they appear outside so they are on the top left quarter
-        
-                        this.circle.selectAll(".labelSeparatorText")
-                            .data(uniqueGroup)
-                            .enter()
-                            .append("text")
-                            .attr("class", "labelSeparatorText")
-                            .attr('x', (d) => {
-                                const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
-                                                            this.formatValue(viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
-        
-        
-                                const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
-                                let labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic);
-                                const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
-                            
-                            
-                                const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
-                                                                valueLabelWidth + separatorLabelWidth + labelWidth :
-                                                            this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
-                                                                labelWidth :
-                                                            !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
-                                                                valueLabelWidth :
-                                                                0;
-                            
-                                                                
-                                const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
-                                
-                                
-                                const ellipsis = "...";
-        
-                                // Truncate text if it exceeds available space
-                                if (completeLabelWidth > availableSpace) {
-                                    let truncatedText = d;
-                                    let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                            
-                                    while (currentWidth > availableSpace && truncatedText.length > 0) {
-                                        truncatedText = truncatedText.slice(0, -1);  
-                                        currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                    }
-                            
-                                    labelWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
-                                }
-        
-        
-                                if( this.visualSettings.labelFormatting.labelAlignment == "right") {
-                                    return wstart - labelWidth
-                                } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
-                                    return wstart - radial_height * uniqueGroup.length * 0.95 + valueLabelWidth
-                                }
-                                else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
-                                    return wstart - radial_height * uniqueGroup.length * 0.5
-                                }
-        
-        
-                            })
-                            .attr('y', function (d, i) {
-                                return hstart - (radial_height * (i + 1)) + (radial_height * 0.55)
-                            })
-                            .attr("dx", -5)
-                            .attr("id", (d, i) => "themark_" + i)
-                            .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? "middle" : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
-                            .attr("font-size", this.visualSettings.labelSeparator.size + 'pt')
-                            .attr("font-weight", this.visualSettings.labelSeparator.textWeight ? "bold" : "normal")
-                            .attr("text-decoration", this.visualSettings.labelSeparator.fontUnderline ? "underline": "normal")
-                            .attr("font-style", this.visualSettings.labelSeparator.fontItalic ? "italic": "normal")
-                            .style("font-family", this.visualSettings.labelSeparator.fontFamily)
-                            .style("fill", this.visualSettings.labelSeparator.fontColor)
-                            .text("\u00A0|\u00A0")
-                            .on("click", (d, i) => {
-        
-                                // when one category is clicked, the visual moves to another level with the detailed categories
-                                if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
-                                    
-                                    if (!this.categorySelected) {
-        
-                                        // if there are no category selected, the visual appears normal, i.e., not filtered
-                                       
-                                        this.selectionManager.clear()
-                                        const identity = viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity)
-                                        return this.selectionManager.select(identity, true).then(() => {
-                                            this.selectedCategoryName = <string><unknown>i
-                                            this.selectedCategoryColor = viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color
-                                            this.categorySelected = this.categorySelected == false ? true : false
-                                            this.last_step = "first"
-                                            this.update(options);
-                                        });
-        
-                                    } else {
-        
-                                        // In case one category is selected, the visual is filtered by that category 
-        
-                                        const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity
-        
-                                        if(this.identitySelected == identity){ // Click a category that is already selected, reset to default state
-                                            this.selectionManager.clear()
-                                            this.detailCategorySelected = false
-                                            this.update(options);
-                                        } else{
-                                            this.identitySelected = identity
-                                            
-                                            // this allow us to know at which level are we in
-                                            if (this.last_step == "first") {
-                                                this.last_step = "second"
-                                                this.selectionManager.clear()
-                                            }
+                    const arc = d3.arc()
+                        .startAngle(0)
+                        .cornerRadius(theradius)
             
-                                            if (!event["ctrlKey"]) {
-                                                this.selectionManager.clear()
-                                                this.filteredCategories = []
-                                            }
-        
+                    const arcShadow = d3.arc()
+                        .startAngle(0)
+                        .cornerRadius(0)
             
-                                            if(!this.visualSettings.iconHome.allowGoBack_label){
-                                                return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
-        
-                                                    this.detailCategorySelected = true
-        
-                                                    this.filteredCategories.push(viewModel.dataPoints.filter(d => d.category == i)[0].category)
-                
-                                                    d3.selectAll(".circle_path").style("fill-opacity", 0.2)
-                
-                
-                                                    for (let i = 0; i < ids.length; i++) {        
-                                                        d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
-                                                        d3.selectAll("[identifier='" + viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
-                                                    }
-                
-                                                });                                             
-                                            }
-                                            else {
-                                                this.selectionManager.clear()
-                                                return handleMouseClick();                                        
-                                            }                               
-                                        }
-        
-        
-        
-                                    }
-                                } else{
-                                    console.log("NO SECOND LEVEL")
-                                }
-        
-                            })
-                    } catch (error) {
-                        console.log(error)
-                    }
-                }
-        
-        
-        
-                let color_index = this.visualSettings.radialSettings.startingOpacity/100
-        
-        
-        
-                for (let groupIndex = 0; groupIndex <= uniqueGroup.length - 1; groupIndex++) {
-                    const dataview_category_values = this.existsSecondMeasure && this.categorySelected ? viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.valueSecondMeasure) : viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.accu)
-                    const uniqueCategories = viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.category).filter(this.onlyUnique)
-        
-                    const is_category_over_limit = this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal > calculatedTotal
-                    const category_limit = is_category_over_limit ? calculatedTotal : this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal
-                    let calculated_category_values = []
-                    if (is_category_over_limit) {
-                        for (const value of dataview_category_values) {
-                            calculated_category_values.push((value * category_limit) / this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal)
-                        }
-                    } else {
-                        calculated_category_values = dataview_category_values
-                    }
-        
-                    d3.select("#demo10")
-                        .append("g")
-                        .attr("transform", "translate(500,500)");
-                    
-                    if (this.visualSettings.radialSettings.shadowVisible == "shadow") {
-        
-                        // creates background behind the radial bars
-                        this.background.append("path")
-                            .datum({ startAngle: 0, endAngle: 0.001, innerRadius: (0.1 * line_tickness) + (line_tickness * groupIndex), outerRadius: line_tickness * (groupIndex + 1), identity: viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].identity })
-                            .attr('d', arcShadow)
-                            .attr("class", "shadow_circle_path")
-                            .style("fill", this.visualSettings.radialSettings.shadowColor)
-                            .style("fill-opacity", this.visualSettings.radialSettings.shadowOpacity/100)
-                            .attr("id", "monthArcShadow_" + groupIndex + "_" + groupIndex)
-                            .attr('transform', 'translate(' + wstart + ',' + (hstart) + ')')                    
-                            .style('stroke-linejoin', 'round')
-                            .call(updatearc, [groupIndex, groupIndex, calculatedTotal, (calculatedTotal / category_limit)], "#monthArcShadow_")
-                            
-        
-                    } else {
-                        // creates sonar lines
-                        this.background.append("path")
-                            .attr("d", d3.arc()
-                                .innerRadius((0.5 * line_tickness) + (line_tickness * groupIndex))
-                                .outerRadius((0.55 * line_tickness) + (line_tickness * (groupIndex)))
-                                .startAngle(-6.28)     // It's in radian, so Pi = 3.14 = bottom.
-                                .endAngle(-1.57)       // 2*Pi = 6.28 = top
-                            )
-                            .attr('fill', this.visualSettings.referenceLine.sonarLinesColor)
-                            .attr("transform", 'translate(' + wstart + ',' + (hstart) + ')')
-                            .attr("fill-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
-        
-                    }
-        
-        
-        
-        
-                    if (this.visualSettings.referenceLine.showReferenceLines) {
-                            
-                        // creates last reference line
-                        this.background.append("line")
-                            .attr("x1", wstart)
-                            .attr("y1", hstart)
-                            .attr("x2", wstart - (line_tickness * (uniqueGroup.length) * 1.05))
-                            .attr("y2", hstart)
-                            .attr("stroke-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
-                            .attr("stroke-dasharray", this.visualSettings.referenceLine.dashline)
-                            .attr("stroke", this.visualSettings.referenceLine.sonarLinesColor)
-                            .attr("stroke-width", this.visualSettings.referenceLine.sonarLineWidth)
-        
-        
-        
-                        for (let i = -2; i < 4; i++) {
-        
-                            // creates reference lines
-                            this.background.append("line")
-                                .attr("id", "shadowLine" + i)
-                                .attr("x1", wstart)
-                                .attr("y1", hstart)
-                                .attr("x2", calculateRadialPoints(i, 10)[0])
-                                .attr("y2", calculateRadialPoints(i, 10)[1])
-                                .attr("stroke-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
-                                .attr("stroke-dasharray", this.visualSettings.referenceLine.dashline)
-                                .attr("stroke", this.visualSettings.referenceLine.sonarLinesColor)
-                                .attr("stroke-width", this.visualSettings.referenceLine.sonarLineWidth)
-                        }
-                    }
-        
-                    
-                    
-                    color_index = !this.categorySelected ? this.visualSettings.radialSettings.startingOpacity/100 : color_index + this.visualSettings.radialSettings.opacitySteps/100
-        
-                    for (let category_index = calculated_category_values.length - 1; category_index >= 0; category_index--) {
-        
+                    const updatearc = (who, type, id) => {
+                        const osnum = type[0];
+                        const typenum = type[1];
+                        const display = type[2];
+            
                         
-                        if (dataview_category_values[category_index] != 0.001) {
-                            
-                            // creates the radial bars
-                            this.circle
-                                .append("path")
-                                .datum({ startAngle: 0, 
-                                            endAngle: 0.001, 
-                                            innerRadius: (0.1 * line_tickness) + (line_tickness * groupIndex), 
-                                            outerRadius: line_tickness * (groupIndex + 1), 
-                                            identity: this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].identity, 
-                                            category: this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex], 
-                                            group: this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].category,
-                                            value: viewModel.dataPoints.filter(d => d.os == (this.categorySelected ? uniqueCategories[category_index] : 
-                                            uniqueGroup[groupIndex])).filter(d => d.category == uniqueCategories[category_index])[0].value })
-                                .attr('d', arc)
-                                .attr("class", "circle_path")
-                                .attr("identifier", this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex])
-                                .style("stroke", "none")
-                                .style('stroke-linejoin', 'round')
-                                .style("stroke-width", 0)
-                                .style("fill", this.visualSettings.radialSettings.colorScheme == "hexaColor" ? this.categorySelected ? this.selectedCategoryColor : viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color : this.categorySelected ? getColor(this.selectedCategoryColor, color_index) : getColor(viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color, color_index))
-                                .style("fill-opacity", this.visualSettings.radialSettings.colorScheme == "hexaColor" ? color_index : 1)
-                                .attr("id", "monthArc_" + groupIndex + "_" + category_index)
-                                .attr('transform', 'translate(' + (wstart) + ',' + (hstart) + ')')
-                                .call(updatearc, [groupIndex, category_index, calculated_category_values[category_index], (calculated_category_values[category_index] / category_limit)], "#monthArc_")
-                                .on("click", () => {
-        
-                                    // the behaviour when clicking the bars, is the same as clicking the labels
-                                    // when one bar is clicked, the visual moves to another level with the detailed categories
-        
-                                    if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
-                                       
-                                        if (!this.categorySelected) { // if there are no category selected, the visual appears normal, i.e., not filtered
-                                            
-                                            this.selectionManager.clear()
-                                            const identity = viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.identity)
-        
+                        const limit = this.visualSettings.generalView.totalValueType == "fixed" 
+                            ? this.visualSettings.generalView.fixedTotal 
+                            : calculatedTotal;
+            
+            
+                
+                        d3.transition()
+                            .select(id + osnum + "_" + typenum)
+                            .transition()
+                            .duration(id.includes("Shadow") ? 0 : this.visualSettings.animationSettings.enableAnimations 
+                                ? osnum * (this.visualSettings.animationSettings.duration * 1000) 
+                                : 0)
+                            .call(arcTween, [type[2] * 1.5 * Math.PI / limit, id == "#monthArcShadow_" ? arcShadow : arc, osnum, typenum, display])
+                            .on("end", () => {
+                                this.events.renderingFinished(options);
+                            });
+            
+                    };
+            
+                    const handleMouseClick = () => {
+                        this.categorySelected = this.categorySelected == false ? true : false
+                        this.filteredCategories = []
+                        this.update(options);
+                    }
+            
+            
+                    let uniqueGroup = this.viewModel.dataPoints.filter(d => d != null).map(d => d.os).filter(this.onlyUnique)
+            
+                    if(this.sortByValues){
+                        const sortCategory = []
+                        try {
+                            for(let i = 0; i < uniqueGroup.length; i++){
+                                sortCategory.push({
+                                    group: uniqueGroup[i],
+                                    groupTotal: <number>this.viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[i]).map(d => d.value).reduce((a, b) => a + b, 0)
+                                })
+                            }
+                        } catch (error) {
+                            console.log(error)
+                        } 
+            
+                        sortCategory.sort(function(a, b){ return a.groupTotal < b.groupTotal ? -1 : 1 })
+                        uniqueGroup = this.sortOrder == 1 ? Array.from(sortCategory, x => x.group).reverse() : Array.from(sortCategory, x => x.group) 
+                    }
+                    
+                    const line_tickness = (Math.min(width, height) / 2 - 20) / uniqueGroup.length
+            
+                    this.totalByCategory = []
+                    let biggest = 0
+                    let maxGroup = null
+            
+                    for (let index = 0; index < uniqueGroup.length; index++) {
+            
+                        const indexOnDataview = this.viewModel.dataPoints.indexOf(this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[index])[0])
+                        const currentSum = this.viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[index]).map(d => d.value).reduce((a, b) => a + b, 0)
+                        
+                        if(currentSum > biggest){
+                            maxGroup =  uniqueGroup[index]
+                            biggest = currentSum
+                        }
+                        this.totalByCategory.push({
+                            group: uniqueGroup[index],
+                            groupTotal: currentSum,
+                            active: options.dataViews.map(d => d.categorical)[0].categories[0].objects != undefined ? dataViewObjects.dataViewObjects.getValue(options.dataViews.map(d => d.categorical)[0].categories[0].objects[indexOnDataview],
+                                { objectName: "generalView", propertyName: "categoryToTotal" }, true) : true,
+                            identity: this.viewModel.dataPoints.filter(d => d != null).filter(d => d.os == uniqueGroup[index])[0].identity
+                        })
+                    }
+            
+                    this.totalByCategory.push({
+                        group: "total",
+                        groupTotal: this.viewModel.dataPoints.map(d => d.value).reduce((a, b) => a + b, 0),
+                        active: true,
+                        identity: null
+                    })
+            
+                    
+                    const total_active_categories = this.totalByCategory.filter(d => d.group != "total").filter(d => d.active).length
+                    const calculatedTotal = !this.categorySelected && total_active_categories != 0 && this.visualSettings.generalView.totalValueType == "sum" ? 
+                                                this.totalByCategory.filter(d => d.group != "total").filter(d => d.active).map(d => d.groupTotal).reduce((a, b) => a + b, 0) : 
+                                                this.visualSettings.generalView.totalValueType == "fixed" ? this.visualSettings.generalView.fixedTotal : this.totalByCategory.filter(d => d.group == maxGroup)[0].groupTotal
+            
+                    const labels = []
+                    const percentageFormat = vL.create({ format: "0.0%" })
+            
+                    for (let i = 0; i < 7; i++) {
+                        
+                        const limit = this.visualSettings.generalView.totalValueType == "fixed" ? this.visualSettings.generalView.fixedTotal : calculatedTotal
+                        const quarter = Math.round(limit * (0.1666666 * i))
+                        let value = ""
+            
+            
+                        value = this.formatValue(quarter, this.defaultCubeFormat, this.visualSettings.numberLabels.decimalPlaces, this.visualSettings.numberLabels.quarterUnits)
+                        labels.push(value)
+                    }
+            
+                    
+            
+                    let biggest_number = 0
+                    for (let i = 0; i < uniqueGroup.length; i++) {
+                        const number = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? this.viewModel.dataPoints.filter(e => e.os == uniqueGroup[i]).map(e => e.value).reduce((a, b) => a + b, 0) / this.viewModel.total : this.viewModel.dataPoints.filter(e => e.os == uniqueGroup[i]).map(e => e.value).reduce((a, b) => a + b, 0)
+            
+                        biggest_number = biggest_number < number ? number : biggest_number
+                    }
+            
+                    const wstart = width / 2
+                    const hstart = (height / 2)
+                    const radial_height = (Math.min(width, height) / 2 - 20) / uniqueGroup.length
+            
+            
+                    if (this.visualSettings.labelFormatting.showLabels) {
+                        try {
+                            // The following text corresponds to the text of the labels of each bar
+                            //In this case they appear outside so they are on the top left quarter
+            
+                            this.circle.selectAll(".labelText")
+                                .data(uniqueGroup)
+                                .enter()
+                                .append("text")
+                                .attr("class", "labelText")
+                                .attr('x', (d) => {
+                                    const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
+                                                            this.formatValue(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
+            
+            
+            
+                                    const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
+                                    const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic)
+                                    const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
+            
+            
+            
+                                    if(this.visualSettings.labelValueFormatting.showLabels) {
+            
+                                        if( this.visualSettings.labelFormatting.labelAlignment == "right") {
+                                            return wstart
+                                        } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
+                                            return wstart - radial_height * uniqueGroup.length * 0.95 + valueLabelWidth + separatorLabelWidth
+                                        }
+                                        else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
+                                            return wstart - radial_height * uniqueGroup.length * 0.5 + separatorLabelWidth / 2
+                                        }
+            
+                                    } else return this.visualSettings.labelFormatting.labelAlignment == "right" ? wstart : 
+                                                (this.visualSettings.labelFormatting.labelAlignment == "left" ? wstart - radial_height * uniqueGroup.length * 0.95 : 
+                                                    this.visualSettings.labelFormatting.labelAlignment == "center" ? wstart - radial_height * uniqueGroup.length * 0.5 : 
+                                                "") 
+            
+            
+                                })
+                                .attr('y', (d, i) => hstart - (radial_height * (i + 1)) + (radial_height * 0.55))
+                                .attr("dx", -5)
+                                .attr("id", (d, i) => "themark_" + i)
+                                .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? (this.visualSettings.labelValueFormatting.showLabels ? "start" : "middle") : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
+                                .attr("font-size", this.visualSettings.labelFormatting.size + 'pt')
+                                .attr("font-weight", this.visualSettings.labelFormatting.textWeight ? "bold" : "normal")
+                                .attr("text-decoration", this.visualSettings.labelFormatting.fontUnderline ? "underline": "normal")
+                                .attr("font-style", this.visualSettings.labelFormatting.fontItalic ? "italic": "normal")
+                                .style("font-family", this.visualSettings.labelFormatting.fontFamily)
+                                .style("fill", this.visualSettings.labelFormatting.fontColor)
+                                .text( (d) => {
+                                    const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
+                                                                this.formatValue(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
+            
+            
+                                
+                                    const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
+                                    const labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                    const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic);
+                                    const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
+                                
+                                
+                                    const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    valueLabelWidth + separatorLabelWidth + labelWidth :
+                                                                this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    labelWidth :
+                                                                !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
+                                                                    valueLabelWidth :
+                                                                    0;
+                                
+                                                                    
+                                    const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
+                                    
+                                    
+                                    const ellipsis = "...";
+            
+                                    // Truncate text if it exceeds available space
+                                    if (completeLabelWidth > availableSpace) {
+                                        let truncatedText = d;
+                                        let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                
+                                        while (currentWidth > availableSpace && truncatedText.length > 0) {
+                                            truncatedText = truncatedText.slice(0, -1);  
+                                            currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                        }
+                                
+                                        return truncatedText.slice(0, -3) + ellipsis; 
+                                    }
+                                
+                                    return d;
+                                })                    
+                                .on("click", (d, i) => {
+                                    // when one category is clicked, the visual moves to another level with the detailed categories
+                                    if ((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) ||
+                                        (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)) {
+                                
+                                        if (!this.categorySelected) {
+                                            // If there are no categories selected, the visual appears normal (not filtered)
+                                            this.selectionManager.clear();
+                                            const identity = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity);
                                             return this.selectionManager.select(identity, true).then(() => {
-                                                this.selectedCategoryName = uniqueGroup[groupIndex]
-                                                this.selectedCategoryColor = viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color
+                                                this.selectedCategoryName = <string><unknown>i;
+                                                this.selectedCategoryColor = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color;
+                                                this.categorySelected = !this.categorySelected;
+                                                this.last_step = "first";
+                                                this.update(options);
+                                            });
+                                
+                                        } else {
+                                            // In case one category is selected, the visual is filtered by that category 
+                                            const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity;
+                                
+                                            if (this.identitySelected === identity) { // Click a category that is already selected, reset to default state
+                                                this.selectionManager.clear();
+                                                this.detailCategorySelected = false;
+                                                this.update(options);
+                                            } else {
+                                                this.identitySelected = identity;
+                                
+                                                // This allows us to track at which level we are
+                                                if (this.last_step === "first") {
+                                                    this.last_step = "second";
+                                                    this.selectionManager.clear();
+                                                }
+                                
+                                                if (!event["ctrlKey"]) {
+                                                    this.selectionManager.clear();
+                                                    this.filteredCategories = [];
+                                                }
+                                
+                                                if (!this.visualSettings.iconHome.allowGoBack_label) {
+                                                    return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
+                                                        this.detailCategorySelected = true;
+                                                        this.filteredCategories.push(this.viewModel.dataPoints.filter(d => d.category == i)[0].category);
+                                
+                                                        d3.selectAll(".circle_path").style("fill-opacity", 0.2);
+                                
+                                                        for (let i = 0; i < ids.length; i++) {
+                                                            d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
+                                                            d3.selectAll("[identifier='" + this.viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1);
+                                                        }
+                                                    });
+                                                } else {
+                                                    this.selectionManager.clear();
+                                                    return handleMouseClick();
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        console.log("NO SECOND LEVEL");
+                                    }
+                                });
+                                
+                        } catch (error) {
+                            console.log(error)
+                        }
+                    }
+            
+            
+            
+                    if (this.visualSettings.labelValueFormatting.showLabels) {
+                        try {
+                            // The following text corresponds to the text of the labels of each bar
+                            //In this case they appear outside so they are on the top left quarter
+            
+                            this.circle.selectAll(".labelValueText")
+                                .data(uniqueGroup)
+                                .enter()
+                                .append("text")
+                                .attr("class", "labelValueText")
+                                .attr('x', (d) => {
+                                    const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
+                                                            this.formatValue(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
+            
+            
+                                    const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
+                                    let labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic)
+                                    const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic)
+                                    const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
+            
+            
+                                    const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    valueLabelWidth + separatorLabelWidth + labelWidth :
+                                                                this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    labelWidth :
+                                                                !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
+                                                                    valueLabelWidth :
+                                                                    0;
+            
+                                                                    
+                                    const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
+            
+            
+                                    const ellipsis = "...";
+                
+                                    // Truncate text if it exceeds available space
+                                    if (completeLabelWidth > availableSpace) {
+                                        let truncatedText = d;
+                                        let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+            
+                                        while (currentWidth> availableSpace && truncatedText.length > 0) {
+                                            truncatedText = truncatedText.slice(0, -1);  
+                                            currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                        }
+            
+                                        labelWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                    }
+            
+                                    if(this.visualSettings.labelFormatting.showLabels) {
+                                        if( this.visualSettings.labelFormatting.labelAlignment == "right") {
+                                            return wstart - labelWidth - separatorLabelWidth
+                                        } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
+                                            return wstart - radial_height * uniqueGroup.length * 0.95
+                                        } else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
+                                            return wstart - radial_height * uniqueGroup.length * 0.5 - separatorLabelWidth / 2
+                                        }
+                                    } else return this.visualSettings.labelFormatting.labelAlignment == "right" ? wstart : 
+                                                this.visualSettings.labelFormatting.labelAlignment == "left" ? wstart - radial_height * uniqueGroup.length * 0.95 :
+                                                this.visualSettings.labelFormatting.labelAlignment == "center" ? wstart - radial_height * uniqueGroup.length * 0.5 : ""
+            
+                                })
+                                .attr('y', function (d, i) {
+                                    return hstart - (radial_height * (i + 1)) + (radial_height * 0.55)
+                                })
+                                .attr("dx", -5)
+                                .attr("id", (d, i) => "themark_" + i)
+                                .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? (this.visualSettings.labelFormatting.showLabels ? "end" : "middle") : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
+                                .attr("font-size", this.visualSettings.labelValueFormatting.size + 'pt')
+                                .attr("font-weight", this.visualSettings.labelValueFormatting.textWeight ? "bold" : "normal")
+                                .attr("text-decoration", this.visualSettings.labelValueFormatting.fontUnderline ? "underline": "normal")
+                                .attr("font-style", this.visualSettings.labelValueFormatting.fontItalic ? "italic": "normal")
+                                .style("font-family", this.visualSettings.labelValueFormatting.fontFamily)
+                                .style("fill", this.visualSettings.labelValueFormatting.fontColor)
+                                .text((d) => {
+            
+                                    const formattedValue =  this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
+                                                                this.formatValue(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
+            
+                                    return formattedValue
+                                    
+            
+                                })
+                                .on("click", (d, i) => {
+            
+                                    // when one category is clicked, the visual moves to another level with the detailed categories
+                                    if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
+                                        
+                                        if (!this.categorySelected) {
+            
+                                            // if there are no category selected, the visual appears normal, i.e., not filtered
+                                        
+                                            this.selectionManager.clear()
+                                            const identity = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity)
+            
+                                            return this.selectionManager.select(identity, true).then(() => {
+                                                this.selectedCategoryName = <string><unknown>i
+                                                this.selectedCategoryColor = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color
                                                 this.categorySelected = this.categorySelected == false ? true : false
                                                 this.last_step = "first"
                                                 this.update(options);
                                             });
             
                                         } else {
-        
+            
                                             // In case one category is selected, the visual is filtered by that category 
-        
-                                            const identity = this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].identity
-        
+            
+                                            const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity
+            
                                             if(this.identitySelected == identity){ // Click a category that is already selected, reset to default state
                                                 this.selectionManager.clear()
                                                 this.detailCategorySelected = false
                                                 this.update(options);
                                             } else{
                                                 this.identitySelected = identity
-                                            
-                                                if (this.last_step == "first") { // this allow us to know at which level are we in
+                                                
+                                                // this allow us to know at which level are we in
+                                                if (this.last_step == "first") {
                                                     this.last_step = "second"
                                                     this.selectionManager.clear()
                                                 }
-            
-        
-                                                if (!(event["ctrlKey"] || event["shiftKey"] || event["altKey"])) {
+                
+                                                if (!event["ctrlKey"]) {
                                                     this.selectionManager.clear()
                                                     this.filteredCategories = []
-                                                } 
-        
-        
-        
-        
-                                                // if allow go back when clicking a category, the visual comes back to the first level, and it is not filtered
-                                                if(!this.visualSettings.iconHome.allowGoBack_category) {
+                                                }
+            
+                
+                                                if(!this.visualSettings.iconHome.allowGoBack_label){
                                                     return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
-        
+            
                                                         this.detailCategorySelected = true
-        
-                                                        this.filteredCategories.push(viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].category)
+            
+                                                        this.filteredCategories.push(this.viewModel.dataPoints.filter(d => d.category == i)[0].category)
                     
                                                         d3.selectAll(".circle_path").style("fill-opacity", 0.2)
+                    
                     
                                                         for (let i = 0; i < ids.length; i++) {
                     
                                                             d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
-                                                            d3.selectAll("[identifier='" + viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
+                                                            d3.selectAll("[identifier='" + this.viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
                                                         }
                     
-                                                    });
+                                                    });                                             
                                                 }
                                                 else {
                                                     this.selectionManager.clear()
-                                                    return handleMouseClick();
-                                                }
+                                                    return handleMouseClick();                                        
+                                                }                               
                                             }
+            
+            
+            
                                         }
                                     } else{
                                         console.log("NO SECOND LEVEL")
                                     }
+            
                                 })
-        
-                            this.tooltipServiceWrapper.addTooltip(this.svg.selectAll(".circle_path"),
-                                (tooltipEvent: TooltipEventArgs<DataPoint>) => this.getTooltipData(tooltipEvent),
-                                (tooltipEvent: TooltipEventArgs<DataPoint>) => this.getTooltipIdentity(tooltipEvent)
-                            );
+                        } catch (error) {
+                            console.log(error)
                         }
-        
-                        color_index = !this.categorySelected ? color_index + (viewModel.dataPoints.filter(d => d.os == (this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex])).filter(d => d.category == uniqueCategories[category_index])[0].value == 0 ? 0 : this.visualSettings.radialSettings.opacitySteps/100) : color_index + 0
                     }
-        
-                    if (this.visualSettings.targetSettings.showTarget && (this.visualSettings.targetSettings.targetType == "variable")) {  
-        
-                        // creates a line that shows where the target is
-                        this.circle.append("line")
-                            .attr("id", "targetLine" + groupIndex)
-                            .attr("x1", calculateTargetPositions(groupIndex, this.existTargetMetric ? viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[0])
-                            .attr("y1", calculateTargetPositions(groupIndex, this.existTargetMetric ? viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[1])
-                            .attr("x2", calculateTargetPositions(groupIndex, this.existTargetMetric ? viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[2])
-                            .attr("y2", calculateTargetPositions(groupIndex, this.existTargetMetric ? viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[3])
-                            .attr("stroke-opacity", this.visualSettings.targetSettings.targetLineOpacity/100)
-                            .attr("stroke-dasharray", 0)
-                            .style("z-index", 9999)
-                            .attr("stroke", this.visualSettings.targetSettings.targetLineColor)
-                            .attr("stroke-width", this.visualSettings.targetSettings.targetLineWidth)
-                            .attr("display", this.categorySelected ? "none" : "block")
-                    }
-        
-        
-                    if (this.visualSettings.radialSettings.shadowVisible == "shadow" && this.visualSettings.lineSettings.lineVisible) {
-        
-                        // creates a circle that borders the radial chart
-                        this.background.append("path")
-                            .attr("transform", 'translate(' + wstart + ',' + (hstart) + ')')
-                            .attr("d", d3.arc()
-                                .innerRadius(1 + (line_tickness * (uniqueGroup.length)))
-                                .outerRadius(line_tickness * (uniqueGroup.length))
-                                .startAngle(-6.28)     // It's in radian, so Pi = 3.14 = bottom.
-                                .endAngle(-1.57)       // 2*Pi = 6.28 = top
-                            )
-                            .attr('stroke', this.visualSettings.lineSettings.linecolor)
-                            .attr('fill', this.visualSettings.lineSettings.linecolor)
-                            .attr("stroke-width", this.visualSettings.lineSettings.linethickness)
-        
-                    }
-                }
-        
-                if (this.categorySelected) {
-        
-                    // when we are on the second level, we want to click on the blank space on the left and on the right 
-                    // then two transparent clickable areas were created (one on the left and another on the right) so that is possible
-                    
-                    // Creates clickable area as a rectangle
-                    this.svg.append("rect")
-                        .attr("class", "buttonArea")
-                        .attr("x", 0)
-                        .attr("y", 0)
-                        .attr("width", (calculateRadialPoints(4, 5)[0] + (-5)) - 25) //switched i for 6 (last label)
-                        .attr("height", height)
-                        .attr("fill", "transparent")
-                        .attr("opacity", 0)
-                        .on("click", () => {
-                            
-                            if(!this.visualSettings.iconHome.allowGoBack_blank_space){
-                                if(this.detailCategorySelected){      // if there is a category selected, it deselects it
-                                    this.selectionManager.clear()
-                                    this.detailCategorySelected = false
-                                    this.update(options);
-                                }
-                            }
-                            else {
-                                this.selectionManager.clear();
-                                return handleMouseClick(); 
-                            }
-                        });
-        
-                    this.svg.append("rect")
-                        .attr("class", "buttonArea")
-                        .attr("x", calculateRadialPoints(0, 5)[0] + (-5) + 27) //switched i for 2 (third label))
-                        .attr("y", 0)
-                        .attr("width", (calculateRadialPoints(4, 5)[0] + (-5)))
-                        .attr("height", height)
-                        .attr("fill", "transparent")
-                        .attr("opacity", 0)
-                        .on("click", () => {
-                            if(!this.visualSettings.iconHome.allowGoBack_blank_space){
-                                if(this.detailCategorySelected){      // if there is a category selected, it deselects it
-                                    this.selectionManager.clear()
-                                    this.detailCategorySelected = false
-                                    this.update(options);
-                                }
-                            }
-                            else {
-                                this.selectionManager.clear();
-                                return handleMouseClick(); 
-                            }
-                        });
-                            
-                    // Create the go back icon using the base64 data URL
-                    this.svg.append("svg:image")
-                        .attr("class", "icons")
-                        .attr("xlink:href", this.visualSettings.iconHome.defaultIcon)
-                        .attr("x", width * (this.visualSettings.iconHome.x_position / 100))
-                        .attr("y", height * (this.visualSettings.iconHome.y_position / 100))
-                        .attr("width", this.visualSettings.iconHome.size + "px")
-                        .attr("height", this.visualSettings.iconHome.size + "px")
-                        .attr("transform", "rotate(90 " + (width * (this.visualSettings.iconHome.x_position / 100) + this.visualSettings.iconHome.size / 2) + " " + (height * (this.visualSettings.iconHome.y_position / 100) + this.visualSettings.iconHome.size / 2) + ")")
-                        .on("click", () => {
-                            this.selectionManager.clear();
-                            return handleMouseClick();
-                        });   
+            
+            
+                    if (this.visualSettings.labelValueFormatting.showLabels && this.visualSettings.labelFormatting.showLabels) {
+                        try {
+                            // The following text corresponds to the text of the labels of each bar
+                            //In this case they appear outside so they are on the top left quarter
+            
+                            this.circle.selectAll(".labelSeparatorText")
+                                .data(uniqueGroup)
+                                .enter()
+                                .append("text")
+                                .attr("class", "labelSeparatorText")
+                                .attr('x', (d) => {
+                                    const formattedValue = this.visualSettings.labelValueFormatting.showPercentages == "percentage" ? percentageFormat.format(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0) / calculatedTotal) : 
+                                                                this.formatValue(this.viewModel.dataPoints.filter(e => e.os == d).map(e => e.value).reduce((a, b) => a + b, 0), this.defaultCubeFormat, this.visualSettings.labelValueFormatting.decimalPlaces, this.visualSettings.labelValueFormatting.displayUnits)
+            
+            
+                                    const separatorLabel = !this.visualSettings.labelValueFormatting.showLabels && !this.visualSettings.labelFormatting.showLabels ? "" : "\u00A0|\u00A0"
+                                    let labelWidth = this.measureWordWidth(d, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                    const valueLabelWidth = this.measureWordWidth(formattedValue, this.visualSettings.labelValueFormatting.size, this.visualSettings.labelValueFormatting.fontFamily, this.visualSettings.labelValueFormatting.textWeight, this.visualSettings.labelValueFormatting.fontItalic);
+                                    const separatorLabelWidth = this.measureWordWidth(separatorLabel, this.visualSettings.labelSeparator.size, this.visualSettings.labelSeparator.fontFamily, this.visualSettings.labelSeparator.textWeight, this.visualSettings.labelSeparator.fontItalic);
                                 
-                            
-                    // Adds label under the icon indicating the category we are in
-                    if(this.visualSettings.iconHome.show_label){
+                                
+                                    const completeLabelWidth = this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    valueLabelWidth + separatorLabelWidth + labelWidth :
+                                                                this.visualSettings.labelFormatting.showLabels && !this.visualSettings.labelValueFormatting.showLabels ?
+                                                                    labelWidth :
+                                                                !this.visualSettings.labelFormatting.showLabels && this.visualSettings.labelValueFormatting.showLabels ? 
+                                                                    valueLabelWidth :
+                                                                    0;
+                                
+                                                                    
+                                    const availableSpace = this.visualSettings.labelFormatting.labelAlignment == "right" || this.visualSettings.labelFormatting.labelAlignment == "left" ? radial_height * uniqueGroup.length * 0.95 : radial_height * uniqueGroup.length                              
+                                    
+                                    
+                                    const ellipsis = "...";
+            
+                                    // Truncate text if it exceeds available space
+                                    if (completeLabelWidth > availableSpace) {
+                                        let truncatedText = d;
+                                        let currentWidth = this.measureWordWidth(truncatedText, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                
+                                        while (currentWidth > availableSpace && truncatedText.length > 0) {
+                                            truncatedText = truncatedText.slice(0, -1);  
+                                            currentWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                        }
+                                
+                                        labelWidth = this.measureWordWidth(truncatedText.slice(0, -3) + ellipsis, this.visualSettings.labelFormatting.size, this.visualSettings.labelFormatting.fontFamily, this.visualSettings.labelFormatting.textWeight, this.visualSettings.labelFormatting.fontItalic);
+                                    }
+            
+            
+                                    if( this.visualSettings.labelFormatting.labelAlignment == "right") {
+                                        return wstart - labelWidth
+                                    } else if( this.visualSettings.labelFormatting.labelAlignment == "left") {
+                                        return wstart - radial_height * uniqueGroup.length * 0.95 + valueLabelWidth
+                                    }
+                                    else if( this.visualSettings.labelFormatting.labelAlignment == "center") {
+                                        return wstart - radial_height * uniqueGroup.length * 0.5
+                                    }
+            
+            
+                                })
+                                .attr('y', function (d, i) {
+                                    return hstart - (radial_height * (i + 1)) + (radial_height * 0.55)
+                                })
+                                .attr("dx", -5)
+                                .attr("id", (d, i) => "themark_" + i)
+                                .attr("text-anchor", this.visualSettings.labelFormatting.labelAlignment == "center" ? "middle" : this.visualSettings.labelFormatting.labelAlignment == "left" ? "start" : "end")
+                                .attr("font-size", this.visualSettings.labelSeparator.size + 'pt')
+                                .attr("font-weight", this.visualSettings.labelSeparator.textWeight ? "bold" : "normal")
+                                .attr("text-decoration", this.visualSettings.labelSeparator.fontUnderline ? "underline": "normal")
+                                .attr("font-style", this.visualSettings.labelSeparator.fontItalic ? "italic": "normal")
+                                .style("font-family", this.visualSettings.labelSeparator.fontFamily)
+                                .style("fill", this.visualSettings.labelSeparator.fontColor)
+                                .text("\u00A0|\u00A0")
+                                .on("click", (d, i) => {
+            
+                                    // when one category is clicked, the visual moves to another level with the detailed categories
+                                    if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
+                                        
+                                        if (!this.categorySelected) {
+            
+                                            // if there are no category selected, the visual appears normal, i.e., not filtered
+                                        
+                                            this.selectionManager.clear()
+                                            const identity = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i).map(d => d.identity)
+                                            return this.selectionManager.select(identity, true).then(() => {
+                                                this.selectedCategoryName = <string><unknown>i
+                                                this.selectedCategoryColor = this.viewModel.dataPoints.filter(d => d.os == <string><unknown>i)[0].color
+                                                this.categorySelected = this.categorySelected == false ? true : false
+                                                this.last_step = "first"
+                                                this.update(options);
+                                            });
+            
+                                        } else {
+            
+                                            // In case one category is selected, the visual is filtered by that category 
+            
+                                            const identity = this.viewModel.dataPoints.filter(d => d.category == i)[0].identity
+            
+                                            if(this.identitySelected == identity){ // Click a category that is already selected, reset to default state
+                                                this.selectionManager.clear()
+                                                this.detailCategorySelected = false
+                                                this.update(options);
+                                            } else{
+                                                this.identitySelected = identity
+                                                
+                                                // this allow us to know at which level are we in
+                                                if (this.last_step == "first") {
+                                                    this.last_step = "second"
+                                                    this.selectionManager.clear()
+                                                }
+                
+                                                if (!event["ctrlKey"]) {
+                                                    this.selectionManager.clear()
+                                                    this.filteredCategories = []
+                                                }
+            
+                
+                                                if(!this.visualSettings.iconHome.allowGoBack_label){
+                                                    return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
+            
+                                                        this.detailCategorySelected = true
+            
+                                                        this.filteredCategories.push(this.viewModel.dataPoints.filter(d => d.category == i)[0].category)
+                    
+                                                        d3.selectAll(".circle_path").style("fill-opacity", 0.2)
+                    
+                    
+                                                        for (let i = 0; i < ids.length; i++) {        
+                                                            d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
+                                                            d3.selectAll("[identifier='" + this.viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
+                                                        }
+                    
+                                                    });                                             
+                                                }
+                                                else {
+                                                    this.selectionManager.clear()
+                                                    return handleMouseClick();                                        
+                                                }                               
+                                            }
+            
+            
+            
+                                        }
+                                    } else{
+                                        console.log("NO SECOND LEVEL")
+                                    }
+            
+                                })
+                        } catch (error) {
+                            console.log(error)
+                        }
+                    }
+            
+            
+            
+                    let color_index = this.visualSettings.radialSettings.startingOpacity/100
+            
+            
+            
+                    for (let groupIndex = 0; groupIndex <= uniqueGroup.length - 1; groupIndex++) {
+                        const dataview_category_values = this.existsSecondMeasure && this.categorySelected ? this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.valueSecondMeasure) : this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.accu)
+                        const uniqueCategories = this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.category).filter(this.onlyUnique)
+            
+                        const is_category_over_limit = this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal > calculatedTotal
+                        const category_limit = is_category_over_limit ? calculatedTotal : this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal
+                        let calculated_category_values = []
+                        if (is_category_over_limit) {
+                            for (const value of dataview_category_values) {
+                                calculated_category_values.push((value * category_limit) / this.totalByCategory.filter(d => d.group == uniqueGroup[groupIndex])[0].groupTotal)
+                            }
+                        } else {
+                            calculated_category_values = dataview_category_values
+                        }
+            
+                        d3.select("#demo10")
+                            .append("g")
+                            .attr("transform", "translate(500,500)");
                         
-                        this.svg.append("text")
-                            .attr("class", "iconText")
-                            .attr('x', width * (this.visualSettings.iconHome.x_position / 100) + this.visualSettings.iconHome.size / 2)
-                            .attr('y', height * (this.visualSettings.iconHome.y_position / 100) + this.visualSettings.iconHome.size + 0.5 * this.visualSettings.iconHome.size)
-                            .attr("text-anchor", "middle")
-                            .attr("font-size", this.visualSettings.iconHome.label_size + 'pt')
-                            .attr("font-weight", this.visualSettings.iconHome.textWeight ? "bold" : "normal")
-                            .attr("text-decoration", this.visualSettings.iconHome.fontUnderline ? "underline": "normal")
-                            .attr("font-style", this.visualSettings.iconHome.fontItalic ? "italic": "normal")
-                            .style("font-family", this.visualSettings.iconHome.fontFamily)
-                            .attr("fill", this.visualSettings.iconHome.fontColor)
-                            .text(this.selectedCategoryName)
+                        if (this.visualSettings.radialSettings.shadowVisible == "shadow") {
+            
+                            // creates background behind the radial bars
+                            this.background.append("path")
+                                .datum({ startAngle: 0, endAngle: 0.001, innerRadius: (0.1 * line_tickness) + (line_tickness * groupIndex), outerRadius: line_tickness * (groupIndex + 1), identity: this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].identity })
+                                .attr('d', arcShadow)
+                                .attr("class", "shadow_circle_path")
+                                .style("fill", this.visualSettings.radialSettings.shadowColor)
+                                .style("fill-opacity", this.visualSettings.radialSettings.shadowOpacity/100)
+                                .attr("id", "monthArcShadow_" + groupIndex + "_" + groupIndex)
+                                .attr('transform', 'translate(' + wstart + ',' + (hstart) + ')')                    
+                                .style('stroke-linejoin', 'round')
+                                .call(updatearc, [groupIndex, groupIndex, calculatedTotal, (calculatedTotal / category_limit)], "#monthArcShadow_")
+                                
+            
+                        } else {
+                            // creates sonar lines
+                            this.background.append("path")
+                                .attr("d", d3.arc()
+                                    .innerRadius((0.5 * line_tickness) + (line_tickness * groupIndex))
+                                    .outerRadius((0.55 * line_tickness) + (line_tickness * (groupIndex)))
+                                    .startAngle(-6.28)     // It's in radian, so Pi = 3.14 = bottom.
+                                    .endAngle(-1.57)       // 2*Pi = 6.28 = top
+                                )
+                                .attr('fill', this.visualSettings.referenceLine.sonarLinesColor)
+                                .attr("transform", 'translate(' + wstart + ',' + (hstart) + ')')
+                                .attr("fill-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
+            
+                        }
+            
+            
+            
+            
+                        if (this.visualSettings.referenceLine.showReferenceLines) {
+                                
+                            // creates last reference line
+                            this.background.append("line")
+                                .attr("x1", wstart)
+                                .attr("y1", hstart)
+                                .attr("x2", wstart - (line_tickness * (uniqueGroup.length) * 1.05))
+                                .attr("y2", hstart)
+                                .attr("stroke-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
+                                .attr("stroke-dasharray", this.visualSettings.referenceLine.dashline)
+                                .attr("stroke", this.visualSettings.referenceLine.sonarLinesColor)
+                                .attr("stroke-width", this.visualSettings.referenceLine.sonarLineWidth)
+            
+            
+            
+                            for (let i = -2; i < 4; i++) {
+            
+                                // creates reference lines
+                                this.background.append("line")
+                                    .attr("id", "shadowLine" + i)
+                                    .attr("x1", wstart)
+                                    .attr("y1", hstart)
+                                    .attr("x2", calculateRadialPoints(i, 10)[0])
+                                    .attr("y2", calculateRadialPoints(i, 10)[1])
+                                    .attr("stroke-opacity", this.visualSettings.referenceLine.sonarOpacity/100)
+                                    .attr("stroke-dasharray", this.visualSettings.referenceLine.dashline)
+                                    .attr("stroke", this.visualSettings.referenceLine.sonarLinesColor)
+                                    .attr("stroke-width", this.visualSettings.referenceLine.sonarLineWidth)
+                            }
+                        }
+            
+                        
+                        
+                        color_index = !this.categorySelected ? this.visualSettings.radialSettings.startingOpacity/100 : color_index + this.visualSettings.radialSettings.opacitySteps/100
+            
+                        for (let category_index = calculated_category_values.length - 1; category_index >= 0; category_index--) {
+            
+                            
+                            if (dataview_category_values[category_index] != 0.001) {
+                                
+                                // creates the radial bars
+                                this.circle
+                                    .append("path")
+                                    .datum({ startAngle: 0, 
+                                                endAngle: 0.001, 
+                                                innerRadius: (0.1 * line_tickness) + (line_tickness * groupIndex), 
+                                                outerRadius: line_tickness * (groupIndex + 1), 
+                                                identity: this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].identity, 
+                                                category: this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex], 
+                                                group: this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].category,
+                                                value: this.viewModel.dataPoints.filter(d => d.os == (this.categorySelected ? uniqueCategories[category_index] : 
+                                                uniqueGroup[groupIndex])).filter(d => d.category == uniqueCategories[category_index])[0].value })
+                                    .attr('d', arc)
+                                    .attr("class", "circle_path")
+                                    .attr("identifier", this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex])
+                                    .style("stroke", "none")
+                                    .style('stroke-linejoin', 'round')
+                                    .style("stroke-width", 0)
+                                    .style("fill", this.visualSettings.radialSettings.colorScheme == "hexaColor" ? this.categorySelected ? this.selectedCategoryColor : this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color : this.categorySelected ? getColor(this.selectedCategoryColor, color_index) : getColor(this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color, color_index))
+                                    .style("fill-opacity", this.visualSettings.radialSettings.colorScheme == "hexaColor" ? color_index : 1)
+                                    .attr("id", "monthArc_" + groupIndex + "_" + category_index)
+                                    .attr('transform', 'translate(' + (wstart) + ',' + (hstart) + ')')
+                                    .call(updatearc, [groupIndex, category_index, calculated_category_values[category_index], (calculated_category_values[category_index] / category_limit)], "#monthArc_")
+                                    .on("click", () => {
+            
+                                        // the behaviour when clicking the bars, is the same as clicking the labels
+                                        // when one bar is clicked, the visual moves to another level with the detailed categories
+            
+                                        if((this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown) || (!this.existsSecondMeasure && this.visualSettings.radialSettings.activateDrilldown)){
+                                        
+                                            if (!this.categorySelected) { // if there are no category selected, the visual appears normal, i.e., not filtered
+                                                
+                                                this.selectionManager.clear()
+                                                const identity = this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex]).map(d => d.identity)
+            
+                                                return this.selectionManager.select(identity, true).then(() => {
+                                                    this.selectedCategoryName = uniqueGroup[groupIndex]
+                                                    this.selectedCategoryColor = this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].color
+                                                    this.categorySelected = this.categorySelected == false ? true : false
+                                                    this.last_step = "first"
+                                                    this.update(options);
+                                                });
+                
+                                            } else {
+            
+                                                // In case one category is selected, the visual is filtered by that category 
+            
+                                                const identity = this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].identity
+            
+                                                if(this.identitySelected == identity){ // Click a category that is already selected, reset to default state
+                                                    this.selectionManager.clear()
+                                                    this.detailCategorySelected = false
+                                                    this.update(options);
+                                                } else{
+                                                    this.identitySelected = identity
+                                                
+                                                    if (this.last_step == "first") { // this allow us to know at which level are we in
+                                                        this.last_step = "second"
+                                                        this.selectionManager.clear()
+                                                    }
+                
+            
+                                                    if (!(event["ctrlKey"] || event["shiftKey"] || event["altKey"])) {
+                                                        this.selectionManager.clear()
+                                                        this.filteredCategories = []
+                                                    } 
+            
+            
+            
+            
+                                                    // if allow go back when clicking a category, the visual comes back to the first level, and it is not filtered
+                                                    if(!this.visualSettings.iconHome.allowGoBack_category) {
+                                                        return this.selectionManager.select(identity, true).then((ids: powerbi.visuals.ISelectionId[]) => {
+            
+                                                            this.detailCategorySelected = true
+            
+                                                            this.filteredCategories.push(this.viewModel.dataPoints.filter(d => d.category == uniqueCategories[category_index])[0].category)
+                        
+                                                            d3.selectAll(".circle_path").style("fill-opacity", 0.2)
+                        
+                                                            for (let i = 0; i < ids.length; i++) {
+                        
+                                                                d3.select("#" + (event.target as HTMLElement).getAttribute("id")).style("fill-opacity", 1);
+                                                                d3.selectAll("[identifier='" + this.viewModel.dataPoints.filter(d => d.identity == ids[i])[0].category + "']").style("fill-opacity", 1)
+                                                            }
+                        
+                                                        });
+                                                    }
+                                                    else {
+                                                        this.selectionManager.clear()
+                                                        return handleMouseClick();
+                                                    }
+                                                }
+                                            }
+                                        } else{
+                                            console.log("NO SECOND LEVEL")
+                                        }
+                                    })
+            
+                                this.tooltipServiceWrapper.addTooltip(this.svg.selectAll(".circle_path"),
+                                    (tooltipEvent: TooltipEventArgs<DataPoint>) => this.getTooltipData(tooltipEvent),
+                                    (tooltipEvent: TooltipEventArgs<DataPoint>) => this.getTooltipIdentity(tooltipEvent)
+                                );
+                            }
+            
+                            color_index = !this.categorySelected ? color_index + (this.viewModel.dataPoints.filter(d => d.os == (this.categorySelected ? uniqueCategories[category_index] : uniqueGroup[groupIndex])).filter(d => d.category == uniqueCategories[category_index])[0].value == 0 ? 0 : this.visualSettings.radialSettings.opacitySteps/100) : color_index + 0
+                        }
+            
+                        if (this.visualSettings.targetSettings.showTarget && (this.visualSettings.targetSettings.targetType == "variable")) {  
+            
+                            // creates a line that shows where the target is
+                            this.circle.append("line")
+                                .attr("id", "targetLine" + groupIndex)
+                                .attr("x1", calculateTargetPositions(groupIndex, this.existTargetMetric ? this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[0])
+                                .attr("y1", calculateTargetPositions(groupIndex, this.existTargetMetric ? this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[1])
+                                .attr("x2", calculateTargetPositions(groupIndex, this.existTargetMetric ? this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[2])
+                                .attr("y2", calculateTargetPositions(groupIndex, this.existTargetMetric ? this.viewModel.dataPoints.filter(d => d.os == uniqueGroup[groupIndex])[0].target : this.visualSettings.targetSettings.fixedTarget)[3])
+                                .attr("stroke-opacity", this.visualSettings.targetSettings.targetLineOpacity/100)
+                                .attr("stroke-dasharray", 0)
+                                .style("z-index", 9999)
+                                .attr("stroke", this.visualSettings.targetSettings.targetLineColor)
+                                .attr("stroke-width", this.visualSettings.targetSettings.targetLineWidth)
+                                .attr("display", this.categorySelected ? "none" : "block")
+                        }
+            
+            
+                        if (this.visualSettings.radialSettings.shadowVisible == "shadow" && this.visualSettings.lineSettings.lineVisible) {
+            
+                            // creates a circle that borders the radial chart
+                            this.background.append("path")
+                                .attr("transform", 'translate(' + wstart + ',' + (hstart) + ')')
+                                .attr("d", d3.arc()
+                                    .innerRadius(1 + (line_tickness * (uniqueGroup.length)))
+                                    .outerRadius(line_tickness * (uniqueGroup.length))
+                                    .startAngle(-6.28)     // It's in radian, so Pi = 3.14 = bottom.
+                                    .endAngle(-1.57)       // 2*Pi = 6.28 = top
+                                )
+                                .attr('stroke', this.visualSettings.lineSettings.linecolor)
+                                .attr('fill', this.visualSettings.lineSettings.linecolor)
+                                .attr("stroke-width", this.visualSettings.lineSettings.linethickness)
+            
+                        }
+                    }
+            
+                    if (this.categorySelected) {
+            
+                        // when we are on the second level, we want to click on the blank space on the left and on the right 
+                        // then two transparent clickable areas were created (one on the left and another on the right) so that is possible
+                        
+                        // Creates clickable area as a rectangle
+                        this.svg.append("rect")
+                            .attr("class", "buttonArea")
+                            .attr("x", 0)
+                            .attr("y", 0)
+                            .attr("width", (calculateRadialPoints(4, 5)[0] + (-5)) - 25) //switched i for 6 (last label)
+                            .attr("height", height)
+                            .attr("fill", "transparent")
+                            .attr("opacity", 0)
+                            .on("click", () => {
+                                
+                                if(!this.visualSettings.iconHome.allowGoBack_blank_space){
+                                    if(this.detailCategorySelected){      // if there is a category selected, it deselects it
+                                        this.selectionManager.clear()
+                                        this.detailCategorySelected = false
+                                        this.update(options);
+                                    }
+                                }
+                                else {
+                                    this.selectionManager.clear();
+                                    return handleMouseClick(); 
+                                }
+                            });
+            
+                        this.svg.append("rect")
+                            .attr("class", "buttonArea")
+                            .attr("x", calculateRadialPoints(0, 5)[0] + (-5) + 27) //switched i for 2 (third label))
+                            .attr("y", 0)
+                            .attr("width", (calculateRadialPoints(4, 5)[0] + (-5)))
+                            .attr("height", height)
+                            .attr("fill", "transparent")
+                            .attr("opacity", 0)
+                            .on("click", () => {
+                                if(!this.visualSettings.iconHome.allowGoBack_blank_space){
+                                    if(this.detailCategorySelected){      // if there is a category selected, it deselects it
+                                        this.selectionManager.clear()
+                                        this.detailCategorySelected = false
+                                        this.update(options);
+                                    }
+                                }
+                                else {
+                                    this.selectionManager.clear();
+                                    return handleMouseClick(); 
+                                }
+                            });
+                                
+                        // Create the go back icon using the base64 data URL
+                        this.svg.append("svg:image")
+                            .attr("class", "icons")
+                            .attr("xlink:href", this.visualSettings.iconHome.defaultIcon)
+                            .attr("x", width * (this.visualSettings.iconHome.x_position / 100))
+                            .attr("y", height * (this.visualSettings.iconHome.y_position / 100))
+                            .attr("width", this.visualSettings.iconHome.size + "px")
+                            .attr("height", this.visualSettings.iconHome.size + "px")
+                            .attr("transform", "rotate(90 " + (width * (this.visualSettings.iconHome.x_position / 100) + this.visualSettings.iconHome.size / 2) + " " + (height * (this.visualSettings.iconHome.y_position / 100) + this.visualSettings.iconHome.size / 2) + ")")
                             .on("click", () => {
                                 this.selectionManager.clear();
                                 return handleMouseClick();
-                            }); 
-                    }
-        
-                }
-        
-        
-        
-                if (this.visualSettings.numberLabels.showNumbers) {
-        
-                    // Adds the value to each category label
-        
-                    this.circle.selectAll(".label_numbers")
-                        .data(labels)
-                        .enter()
-                        .append('text')
-                        .attr("class", "label_numbers")
-                        .attr("x", (d, i) => calculateRadialPoints(i - 2, 5)[0] + (i <= 3 ? i == 3 ? (+10) : (+5) : (-5)))
-                        .attr("y", (d, i) => calculateRadialPoints(i - 2, 5)[1] + (i <= 3 ? (-5) : (+15)))
-                        .style("z-index", "999999")
-                        .attr("font-size", this.visualSettings.numberLabels.size + 'pt')
-                        .attr("font-weight", this.visualSettings.numberLabels.textWeight ? "bold" : "normal")
-                        .attr("text-decoration", this.visualSettings.numberLabels.fontUnderline ? "underline": "normal")
-                        .attr("font-style", this.visualSettings.numberLabels.fontItalic ? "italic": "normal")
-                        .style("font-family", this.visualSettings.numberLabels.fontFamily)
-                        .style("fill", this.visualSettings.numberLabels.fontColor)
-                        .style("text-anchor", (d, i) => i <= 3 ? "start" : "end")
-                        .text(function (d) {
-                            return d
-                        });
-                }
-        
-        
-        
-                if (this.visualSettings.targetSettings.showTarget && (this.visualSettings.targetSettings.targetType == "fixed")) {
-        
-                    // creates target line
-                    this.circle.append("line")
-                        .attr("id", "targetLine")
-                        .attr("x1", wstart)
-                        .attr("y1", hstart)
-                        .attr("x2", calculateTargetPositions(uniqueGroup.length - 1, (this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget))[2])
-                        .attr("y2", calculateTargetPositions(uniqueGroup.length - 1, (this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget))[3])
-                        .attr("stroke-opacity", this.visualSettings.targetSettings.targetLineOpacity/100)
-                        .attr("stroke-dasharray", 0)
-                        .style("z-index", 99999)
-                        .attr("stroke", this.visualSettings.targetSettings.targetLineColor)
-                        .attr("stroke-width", this.visualSettings.targetSettings.targetLineWidth)
-                        .attr("display", this.categorySelected ? "none" : "block")
-                    
-        
-        
-        
-        
-                    // Adds a label to the target line with the target value
-                    const targetLineLabel = this.background
-                        .append("text")
-                        .attr("id", "targetLineLabel")
-                        .attr("x", () => {
-                            const textProperties = {
-                                text: this.visualSettings.targetTitle.title,
-                                fontFamily: this.visualSettings.targetTitle.fontFamily,
-                                fontSize: this.visualSettings.targetTitle.fontSize + "pt",
-                                fontStyle: this.visualSettings.targetTitle.textWeight ? "bold" : "normal"
-                            };
-        
-                            const labelWidth = textMeasurementService.measureSvgTextWidth(textProperties);
-                            const xPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[2];
-        
-                            return xPosition + (xPosition > (width * 0.5) ? (labelWidth * 0.1) : -(labelWidth * 0.1));
-                        })
-                        .attr("y", () => {
-                            const textProperties = {
-                                text: this.visualSettings.targetTitle.title,
-                                fontFamily: this.visualSettings.targetTitle.fontFamily,
-                                fontSize: this.visualSettings.targetTitle.fontSize + "pt",
-                                fontWeight: this.visualSettings.targetTitle.textWeight ? "bold" : "normal"
-                            };
-        
-                            const labelHeight = textMeasurementService.measureSvgTextHeight(textProperties);
-                            const yPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[3];
-        
-                            return yPosition + (yPosition > (height * 0.5) ? labelHeight : 0);
-                        })
-                        .attr("fill", this.visualSettings.targetTitle.fontColor)
-                        .attr("text-anchor", () => {
-                            const xPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[2];
-                            return xPosition > (width * 0.5) ? "start" : "end";
-                        })
-                        .attr("display", this.categorySelected ? "none" : "block")
-        
-                    // Append Title as a separate <tspan>
-                    targetLineLabel.append("tspan")
-                        .attr("fill", this.visualSettings.targetTitle.fontColor)  // Allow different color for title
-                        .attr("font-size", this.visualSettings.targetTitle.fontSize + 'pt')  // Separate font size for title
-                        .attr("font-weight", this.visualSettings.targetTitle.textWeight ? "bold" : "normal")  // Apply bold or normal
-                        .attr("text-decoration", this.visualSettings.targetTitle.fontUnderline ? "underline" : "none")  // Apply underline if enabled
-                        .attr("font-style", this.visualSettings.targetTitle.fontItalic ? "italic" : "normal")  // Apply italic if enabled
-                        .style("font-family", this.visualSettings.targetTitle.fontFamily)  // Separate font family for title
-                        .text(this.visualSettings.targetTitle.title);
-        
-                    // Append Value as a separate <tspan>  
-                    targetLineLabel.append("tspan")
-                        .attr("dx", 5)  // Add spacing between title and value
-                        .attr("fill", this.visualSettings.targetSettings.fontColor)  // Allow different color for value
-                        .attr("font-size", this.visualSettings.targetSettings.fontSize + 'pt')  // Separate font size for value
-                        .attr("font-weight", this.visualSettings.targetSettings.textWeight ? "bold" : "normal")  // Apply bold or normal
-                        .attr("text-decoration", this.visualSettings.targetSettings.fontUnderline ? "underline" : "none")  // Apply underline if enabled
-                        .attr("font-style", this.visualSettings.targetSettings.fontItalic ? "italic" : "normal")  // Apply italic if enabled
-                        .style("font-family", this.visualSettings.targetSettings.fontFamily)  // Separate font family for value
-                        .text(this.formatValue((this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget), this.defaultCubeFormat, this.visualSettings.targetSettings.decimalPlaces, this.visualSettings.targetSettings.quarterUnits));
-        
+                            });   
+                                    
+                                
+                        // Adds label under the icon indicating the category we are in
+                        if(this.visualSettings.iconHome.show_label){
                             
-        
-        
-        
-                }
-        
-                //handle context menu
-                this.svg.on('contextmenu', (event: MouseEvent) => { 
-                    const eventTarget = event.target as SVGElement; // Use a more specific type
-                    const dataPoint = d3.select<SVGElement, datum>(eventTarget).datum();
-                    
-                    this.selectionManager.showContextMenu(dataPoint ? dataPoint.identity : {}, {
-                        x: event.clientX,
-                        y: event.clientY
-                    });
-                
-                    event.preventDefault();
-                });
-                
-        
-        
-        
-        
-        
-                /**
-                 * Function Name: calculateRadialPoints
-                 * Description: Calculates the coordinates of a point on a radial line at a given position.
-                 *
-                 * @param {number} position - The position of the point on the radial line.
-                 * @param {number} outMargin - The margin outside the radial line.
-                 * @returns {number[]} - An array containing the x and y coordinates of the calculated point.
-                 */
-        
-                function calculateRadialPoints(position, outMargin) {
-                    const cx = wstart
-                    const cy = hstart
-                    const r = line_tickness * (uniqueGroup.length) + outMargin //--radius--
-                    const angle = Math.PI * 0.25 //---angle between each line---
-        
-        
-                    const x2 = r * Math.cos(angle * position) + cx
-                    const y2 = r * Math.sin(angle * position) + cy
-        
-                    
-                    return [x2, y2]
-                }
-                
-        
-                /**
-                 * Function Name: calculateTargetPositions
-                 * Description: Calculates the coordinates of two points for a target line based on position and target values.
-                 *
-                 * @param {number} position - The position of the target line.
-                 * @param {number} target - The target value.
-                 * @returns {number[]} - An array containing the x and y coordinates of the starting and ending points of the target line.
-                 */
-                function calculateTargetPositions(position, target) {
-                    const degree =  270 - ((270 * ((target / calculatedTotal) * 100)) / 100)
-                    const r2 = line_tickness * (position + 1)
-                    const r1 = line_tickness * (position) + (line_tickness * 0.1)//--radius--
-        
-                    const rad = (270 + degree) * Math.PI / 180;
-                    const x1 = wstart + Math.sin(rad) * r1
-                    const y1 = hstart + Math.cos(rad) * r1;
-                    const x2 = wstart + Math.sin(rad) * r2;
-                    const y2 = hstart + Math.cos(rad) * r2;
-                    return [x1, y1, x2, y2]
-                }
-        
-        
-                /**
-                 * Function Name: getColor
-                 * Description: Returns an interpolated color based on the input color name and index.
-                 *
-                 * @param {string} color - The name of the color palette (e.g., "blue", "green").
-                 * @param {number} color_index - The index of the color within the palette.
-                 * @returns {string} - The interpolated color value.
-                 */
-                function getColor(color: string, color_index: number) {
-                    if (color == "blue") {
-                        return d3.interpolateBlues(color_index)
-                    } else if (color == "green") {
-                        return d3.interpolateGreens(color_index)
-                    } else if (color == "purple") {
-                        return d3.interpolatePurples(color_index)
-                    } else if (color == "red") {
-                        return d3.interpolateReds(color_index)
-                    } else if (color == "grey") {
-                        return d3.interpolateGreys(color_index)
-                    } else if (color == "orange") {
-                        return d3.interpolateOranges(color_index)
-                    } else if (color == "bugn") {
-                       
-                        return d3.interpolateBuGn(color_index)
-                    } else if (color == "bupu") {
-                        return d3.interpolateBuPu(color_index)
-                    } else if (color == "gnbu") {
-                      
-                        return d3.interpolateGnBu(color_index)
-                    } else if (color == "orrd") {
-        
-                        return d3.interpolateOrRd(color_index)
-                    } else if (color == "pubugn") {
-                        return d3.interpolatePuBuGn(color_index)
-                    } else if (color == "pubu") {
-                        return d3.interpolatePuBu(color_index)
-                    } else if (color == "purd") {
-                        return d3.interpolatePuRd(color_index)
-                    } else if (color == "rdpu") {
-                        return d3.interpolateRdPu(color_index)
-                    } else if (color == "ylgnbu") {
-                        return d3.interpolateYlGnBu(color_index)
-                    } else if (color == "ylgn") {
-                        return d3.interpolateYlGn(color_index)
-                    } else if (color == "ylorbr") {
-                        return d3.interpolateYlOrBr(color_index)
-                    } else if (color == "ylorrd") {
-                        return d3.interpolateYlOrRd(color_index)
-                    } else {
-                        return d3.interpolateRainbow(color_index)
+                            this.svg.append("text")
+                                .attr("class", "iconText")
+                                .attr('x', width * (this.visualSettings.iconHome.x_position / 100) + this.visualSettings.iconHome.size / 2)
+                                .attr('y', height * (this.visualSettings.iconHome.y_position / 100) + this.visualSettings.iconHome.size + 0.5 * this.visualSettings.iconHome.size)
+                                .attr("text-anchor", "middle")
+                                .attr("font-size", this.visualSettings.iconHome.label_size + 'pt')
+                                .attr("font-weight", this.visualSettings.iconHome.textWeight ? "bold" : "normal")
+                                .attr("text-decoration", this.visualSettings.iconHome.fontUnderline ? "underline": "normal")
+                                .attr("font-style", this.visualSettings.iconHome.fontItalic ? "italic": "normal")
+                                .style("font-family", this.visualSettings.iconHome.fontFamily)
+                                .attr("fill", this.visualSettings.iconHome.fontColor)
+                                .text(this.selectedCategoryName)
+                                .on("click", () => {
+                                    this.selectionManager.clear();
+                                    return handleMouseClick();
+                                }); 
+                        }
+            
                     }
-                }
-        
-        
-                /**
-                 * Function Name: arcTween
-                 * Description: Defines a tweening function for transitioning between two arc shapes.
-                 *
-                 * @param {d3.Transition<SVGPathElement, any, any, any>} transition - The D3 transition object.
-                 * @param {number[]} arr - An array containing parameters for the transition (e.g., new end angle and arc generator).
-                 */
-                function arcTween(transition, arr): void {
-        
-                    transition.attrTween('d', (d) => {
-                        const interpolate = d3.interpolate(0, arr[0]);
-        
-                        return (t) => {
-        
-                            d.endAngle = interpolate(t);
-                            return arr[1](d);
-        
-                        };
+            
+            
+            
+                    if (this.visualSettings.numberLabels.showNumbers) {
+            
+                        // Adds the value to each category label
+            
+                        this.circle.selectAll(".label_numbers")
+                            .data(labels)
+                            .enter()
+                            .append('text')
+                            .attr("class", "label_numbers")
+                            .attr("x", (d, i) => calculateRadialPoints(i - 2, 5)[0] + (i <= 3 ? i == 3 ? (+10) : (+5) : (-5)))
+                            .attr("y", (d, i) => calculateRadialPoints(i - 2, 5)[1] + (i <= 3 ? (-5) : (+15)))
+                            .style("z-index", "999999")
+                            .attr("font-size", this.visualSettings.numberLabels.size + 'pt')
+                            .attr("font-weight", this.visualSettings.numberLabels.textWeight ? "bold" : "normal")
+                            .attr("text-decoration", this.visualSettings.numberLabels.fontUnderline ? "underline": "normal")
+                            .attr("font-style", this.visualSettings.numberLabels.fontItalic ? "italic": "normal")
+                            .style("font-family", this.visualSettings.numberLabels.fontFamily)
+                            .style("fill", this.visualSettings.numberLabels.fontColor)
+                            .style("text-anchor", (d, i) => i <= 3 ? "start" : "end")
+                            .text(function (d) {
+                                return d
+                            });
+                    }
+            
+            
+            
+                    if (this.visualSettings.targetSettings.showTarget && (this.visualSettings.targetSettings.targetType == "fixed")) {
+            
+                        // creates target line
+                        this.circle.append("line")
+                            .attr("id", "targetLine")
+                            .attr("x1", wstart)
+                            .attr("y1", hstart)
+                            .attr("x2", calculateTargetPositions(uniqueGroup.length - 1, (this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget))[2])
+                            .attr("y2", calculateTargetPositions(uniqueGroup.length - 1, (this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget))[3])
+                            .attr("stroke-opacity", this.visualSettings.targetSettings.targetLineOpacity/100)
+                            .attr("stroke-dasharray", 0)
+                            .style("z-index", 99999)
+                            .attr("stroke", this.visualSettings.targetSettings.targetLineColor)
+                            .attr("stroke-width", this.visualSettings.targetSettings.targetLineWidth)
+                            .attr("display", this.categorySelected ? "none" : "block")
+                        
+            
+            
+            
+            
+                        // Adds a label to the target line with the target value
+                        const targetLineLabel = this.background
+                            .append("text")
+                            .attr("id", "targetLineLabel")
+                            .attr("x", () => {
+                                const textProperties = {
+                                    text: this.visualSettings.targetTitle.title,
+                                    fontFamily: this.visualSettings.targetTitle.fontFamily,
+                                    fontSize: this.visualSettings.targetTitle.fontSize + "pt",
+                                    fontStyle: this.visualSettings.targetTitle.textWeight ? "bold" : "normal"
+                                };
+            
+                                const labelWidth = textMeasurementService.measureSvgTextWidth(textProperties);
+                                const xPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[2];
+            
+                                return xPosition + (xPosition > (width * 0.5) ? (labelWidth * 0.1) : -(labelWidth * 0.1));
+                            })
+                            .attr("y", () => {
+                                const textProperties = {
+                                    text: this.visualSettings.targetTitle.title,
+                                    fontFamily: this.visualSettings.targetTitle.fontFamily,
+                                    fontSize: this.visualSettings.targetTitle.fontSize + "pt",
+                                    fontWeight: this.visualSettings.targetTitle.textWeight ? "bold" : "normal"
+                                };
+            
+                                const labelHeight = textMeasurementService.measureSvgTextHeight(textProperties);
+                                const yPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[3];
+            
+                                return yPosition + (yPosition > (height * 0.5) ? labelHeight : 0);
+                            })
+                            .attr("fill", this.visualSettings.targetTitle.fontColor)
+                            .attr("text-anchor", () => {
+                                const xPosition = calculateTargetPositions(uniqueGroup.length - 1, this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget)[2];
+                                return xPosition > (width * 0.5) ? "start" : "end";
+                            })
+                            .attr("display", this.categorySelected ? "none" : "block")
+            
+                        // Append Title as a separate <tspan>
+                        targetLineLabel.append("tspan")
+                            .attr("fill", this.visualSettings.targetTitle.fontColor)  // Allow different color for title
+                            .attr("font-size", this.visualSettings.targetTitle.fontSize + 'pt')  // Separate font size for title
+                            .attr("font-weight", this.visualSettings.targetTitle.textWeight ? "bold" : "normal")  // Apply bold or normal
+                            .attr("text-decoration", this.visualSettings.targetTitle.fontUnderline ? "underline" : "none")  // Apply underline if enabled
+                            .attr("font-style", this.visualSettings.targetTitle.fontItalic ? "italic" : "normal")  // Apply italic if enabled
+                            .style("font-family", this.visualSettings.targetTitle.fontFamily)  // Separate font family for title
+                            .text(this.visualSettings.targetTitle.title);
+            
+                        // Append Value as a separate <tspan>  
+                        targetLineLabel.append("tspan")
+                            .attr("dx", 5)  // Add spacing between title and value
+                            .attr("fill", this.visualSettings.targetSettings.fontColor)  // Allow different color for value
+                            .attr("font-size", this.visualSettings.targetSettings.fontSize + 'pt')  // Separate font size for value
+                            .attr("font-weight", this.visualSettings.targetSettings.textWeight ? "bold" : "normal")  // Apply bold or normal
+                            .attr("text-decoration", this.visualSettings.targetSettings.fontUnderline ? "underline" : "none")  // Apply underline if enabled
+                            .attr("font-style", this.visualSettings.targetSettings.fontItalic ? "italic" : "normal")  // Apply italic if enabled
+                            .style("font-family", this.visualSettings.targetSettings.fontFamily)  // Separate font family for value
+                            .text(this.formatValue((this.existTargetMetric ? this.targetValue : this.visualSettings.targetSettings.fixedTarget), this.defaultCubeFormat, this.visualSettings.targetSettings.decimalPlaces, this.visualSettings.targetSettings.quarterUnits));
+            
+                                
+            
+            
+            
+                    }
+            
+                    //handle context menu
+                    this.svg.on('contextmenu', (event: MouseEvent) => { 
+                        const eventTarget = event.target as SVGElement; // Use a more specific type
+                        const dataPoint = d3.select<SVGElement, datum>(eventTarget).datum();
+                        
+                        this.selectionManager.showContextMenu(dataPoint ? dataPoint.identity : {}, {
+                            x: event.clientX,
+                            y: event.clientY
+                        });
+                    
+                        event.preventDefault();
                     });
+                    
+            
+            
+            
+            
+            
+                    /**
+                     * Function Name: calculateRadialPoints
+                     * Description: Calculates the coordinates of a point on a radial line at a given position.
+                     *
+                     * @param {number} position - The position of the point on the radial line.
+                     * @param {number} outMargin - The margin outside the radial line.
+                     * @returns {number[]} - An array containing the x and y coordinates of the calculated point.
+                     */
+            
+                    function calculateRadialPoints(position, outMargin) {
+                        const cx = wstart
+                        const cy = hstart
+                        const r = line_tickness * (uniqueGroup.length) + outMargin //--radius--
+                        const angle = Math.PI * 0.25 //---angle between each line---
+            
+            
+                        const x2 = r * Math.cos(angle * position) + cx
+                        const y2 = r * Math.sin(angle * position) + cy
+            
+                        
+                        return [x2, y2]
+                    }
+                    
+            
+                    /**
+                     * Function Name: calculateTargetPositions
+                     * Description: Calculates the coordinates of two points for a target line based on position and target values.
+                     *
+                     * @param {number} position - The position of the target line.
+                     * @param {number} target - The target value.
+                     * @returns {number[]} - An array containing the x and y coordinates of the starting and ending points of the target line.
+                     */
+                    function calculateTargetPositions(position, target) {
+                        const degree =  270 - ((270 * ((target / calculatedTotal) * 100)) / 100)
+                        const r2 = line_tickness * (position + 1)
+                        const r1 = line_tickness * (position) + (line_tickness * 0.1)//--radius--
+            
+                        const rad = (270 + degree) * Math.PI / 180;
+                        const x1 = wstart + Math.sin(rad) * r1
+                        const y1 = hstart + Math.cos(rad) * r1;
+                        const x2 = wstart + Math.sin(rad) * r2;
+                        const y2 = hstart + Math.cos(rad) * r2;
+                        return [x1, y1, x2, y2]
+                    }
+            
+            
+                    /**
+                     * Function Name: getColor
+                     * Description: Returns an interpolated color based on the input color name and index.
+                     *
+                     * @param {string} color - The name of the color palette (e.g., "blue", "green").
+                     * @param {number} color_index - The index of the color within the palette.
+                     * @returns {string} - The interpolated color value.
+                     */
+                    function getColor(color: string, color_index: number) {
+                        if (color == "blue") {
+                            return d3.interpolateBlues(color_index)
+                        } else if (color == "green") {
+                            return d3.interpolateGreens(color_index)
+                        } else if (color == "purple") {
+                            return d3.interpolatePurples(color_index)
+                        } else if (color == "red") {
+                            return d3.interpolateReds(color_index)
+                        } else if (color == "grey") {
+                            return d3.interpolateGreys(color_index)
+                        } else if (color == "orange") {
+                            return d3.interpolateOranges(color_index)
+                        } else if (color == "bugn") {
+                        
+                            return d3.interpolateBuGn(color_index)
+                        } else if (color == "bupu") {
+                            return d3.interpolateBuPu(color_index)
+                        } else if (color == "gnbu") {
+                        
+                            return d3.interpolateGnBu(color_index)
+                        } else if (color == "orrd") {
+            
+                            return d3.interpolateOrRd(color_index)
+                        } else if (color == "pubugn") {
+                            return d3.interpolatePuBuGn(color_index)
+                        } else if (color == "pubu") {
+                            return d3.interpolatePuBu(color_index)
+                        } else if (color == "purd") {
+                            return d3.interpolatePuRd(color_index)
+                        } else if (color == "rdpu") {
+                            return d3.interpolateRdPu(color_index)
+                        } else if (color == "ylgnbu") {
+                            return d3.interpolateYlGnBu(color_index)
+                        } else if (color == "ylgn") {
+                            return d3.interpolateYlGn(color_index)
+                        } else if (color == "ylorbr") {
+                            return d3.interpolateYlOrBr(color_index)
+                        } else if (color == "ylorrd") {
+                            return d3.interpolateYlOrRd(color_index)
+                        } else {
+                            return d3.interpolateRainbow(color_index)
+                        }
+                    }
+            
+            
+                    /**
+                     * Function Name: arcTween
+                     * Description: Defines a tweening function for transitioning between two arc shapes.
+                     *
+                     * @param {d3.Transition<SVGPathElement, any, any, any>} transition - The D3 transition object.
+                     * @param {number[]} arr - An array containing parameters for the transition (e.g., new end angle and arc generator).
+                     */
+                    function arcTween(transition, arr): void {
+            
+                        transition.attrTween('d', (d) => {
+                            const interpolate = d3.interpolate(0, arr[0]);
+            
+                            return (t) => {
+            
+                                d.endAngle = interpolate(t);
+                                return arr[1](d);
+            
+                            };
+                        });
+                    }
                 }
             }
         }
-
-
-
     }
 
 
