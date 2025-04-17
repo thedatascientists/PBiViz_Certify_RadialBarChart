@@ -329,6 +329,12 @@ export class Visual implements IVisual {
 
         this.events.renderingStarted(options);
 
+        const existingLandingPage = this.target.querySelector('.landing-page');
+        if (existingLandingPage) {
+            this.target.removeChild(existingLandingPage);
+        }
+
+
         if (!options.dataViews || options.dataViews.length === 0 || !options.dataViews[0].categorical) {
             this.renderLandingPage(options)
         }
